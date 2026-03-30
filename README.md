@@ -1,1 +1,6 @@
-# AI-Grupo-9-Proyecto
+# Conteo de productos en gondolas
+
+## Integrantes:
+
+-Nicolas Leighton   
+-Alvaro Tapia   
