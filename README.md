@@ -4,3 +4,8 @@
 
 -Nicolas Leighton   
 -Alvaro Tapia   
+
+
+### Dataset:
+
+https://www.kaggle.com/datasets/thedatasith/sku110k-annotations
