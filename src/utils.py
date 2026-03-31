@@ -22,6 +22,6 @@ def yolo_to_bbox(box, img_w, img_h):
     x1 = int(x_center - box_w / 2)
     y1 = int(y_center - box_h / 2)
     x2 = int(x_center + box_w / 2)
-    y2 = int(y_center + box_w / 2)
+    y2 = int(y_center + box_h / 2)
 
     return x1, y1, x2, y2

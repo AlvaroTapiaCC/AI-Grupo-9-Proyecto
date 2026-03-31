@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -72,19 +73,75 @@ def detect_products(model, img_path, patch_size=32, step=16, threshold=0.7):
             prob = model.predict_proba(X)[0][1]
 
             if prob > threshold:
-                boxes.append((x, y, x+patch_size, y+patch_size))
+                boxes.append((x, y, x+patch_size, y+patch_size, prob))
 
+    # Aplicar NMS para eliminar duplicados
+    boxes = non_maximum_suppression(boxes, iou_threshold=0.3)
+    
     return img, boxes
+
+
+# -------------------------------
+# 4b. Non-Maximum Suppression
+# -------------------------------
+def non_maximum_suppression(boxes, iou_threshold=0.3):
+    """Elimina detecciones superpuestas manteniendo las de mayor confianza."""
+    if len(boxes) == 0:
+        return []
+    
+    # Ordenar por probabilidad descendente
+    boxes = sorted(boxes, key=lambda x: x[4], reverse=True)
+    selected = []
+    
+    while len(boxes) > 0:
+        current = boxes.pop(0)
+        selected.append(current)
+        
+        # Eliminar boxes con IOU > threshold
+        boxes = [b for b in boxes if iou(current, b) < iou_threshold]
+    
+    return selected
+
+
+def iou(box1, box2):
+    """Calcula Intersection over Union entre dos boxes."""
+    x1_min, y1_min, x1_max, y1_max = box1[:4]
+    x2_min, y2_min, x2_max, y2_max = box2[:4]
+    
+    xi_min = max(x1_min, x2_min)
+    yi_min = max(y1_min, y2_min)
+    xi_max = min(x1_max, x2_max)
+    yi_max = min(y1_max, y2_max)
+    
+    if xi_max < xi_min or yi_max < yi_min:
+        return 0.0
+    
+    intersection = (xi_max - xi_min) * (yi_max - yi_min)
+    area1 = (x1_max - x1_min) * (y1_max - y1_min)
+    area2 = (x2_max - x2_min) * (y2_max - y2_min)
+    union = area1 + area2 - intersection
+    
+    return intersection / union if union > 0 else 0
 
 
 # -------------------------------
 # 5. Dibujar resultados
 # -------------------------------
 def draw_boxes(img, boxes):
-    for (x1, y1, x2, y2) in boxes:
-        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    img_copy = img.copy()
+    for box in boxes:
+        if len(box) == 5:
+            x1, y1, x2, y2, prob = box
+            label = f"{prob:.2f}"
+        else:
+            x1, y1, x2, y2 = box
+            label = ""
+        
+        cv2.rectangle(img_copy, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        if label:
+            cv2.putText(img_copy, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    plt.imshow(cv2.cvtColor(img_copy, cv2.COLOR_BGR2RGB))
     plt.axis("off")
     plt.show()
 
@@ -95,12 +152,17 @@ def draw_boxes(img, boxes):
 def main():
     IMG_DIR = "../SKU110K/images/train"
     LBL_DIR = "../SKU110K/labels/train"
+    MODEL_PATH = "model_logistic_regression.pkl"
 
     print("Construyendo dataset...")
     X_train, X_test, Y_train, Y_test = prepare_data(IMG_DIR, LBL_DIR)
 
     print("Entrenando modelo...")
     model = train_model(X_train, Y_train)
+    
+    print(f"Guardando modelo en {MODEL_PATH}...")
+    with open(MODEL_PATH, 'wb') as f:
+        pickle.dump(model, f)
 
     print("Evaluando modelo...")
     evaluate_model(model, X_test, Y_test)
@@ -111,7 +173,7 @@ def main():
     print("\nDetectando productos en imagen...")
     img, boxes = detect_products(model, test_img)
 
-    print("Boxes detectadas:", len(boxes))
+    print(f"Boxes detectadas (después de NMS): {len(boxes)}")
     draw_boxes(img, boxes)
 
 
