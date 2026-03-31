@@ -11,7 +11,13 @@ def main():
     
     IMG_DIR = "../SKU110K/images/train"
     LBL_DIR = "../SKU110K/labels/train"
-    MODEL_PATH = "model_logistic_regression.pkl"
+    MODELS_DIR = "../models"
+    RESULTS_DIR = "../results"
+    MODEL_PATH = os.path.join(MODELS_DIR, "model_logistic_regression.pkl")
+    
+    # Crear directorios si no existen
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     
     # 1. Preparar datos
     print("=" * 50)
@@ -48,7 +54,9 @@ def main():
     if os.path.exists(test_img):
         img, boxes = detect_products(model, test_img)
         print(f"✓ Detección completada: {len(boxes)} productos encontrados")
-        draw_boxes(img, boxes)
+        
+        output_img = os.path.join(RESULTS_DIR, "detections_test_0.jpg")
+        draw_boxes(img, boxes, output_path=output_img)
     else:
         print(f"✗ Imagen de prueba no encontrada: {test_img}")
     

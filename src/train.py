@@ -56,7 +56,7 @@ def evaluate_model(model, X_test, Y_test):
 # -------------------------------
 # 4. Sliding Window Detection
 # -------------------------------
-def detect_products(model, img_path, patch_size=32, step=16, threshold=0.7):
+def detect_products(model, img_path, patch_size=64, step=32, threshold=0.7):
     img = cv2.imread(img_path)
     h, w, _ = img.shape
 
@@ -127,7 +127,7 @@ def iou(box1, box2):
 # -------------------------------
 # 5. Dibujar resultados
 # -------------------------------
-def draw_boxes(img, boxes):
+def draw_boxes(img, boxes, output_path=None):
     img_copy = img.copy()
     for box in boxes:
         if len(box) == 5:
@@ -141,9 +141,13 @@ def draw_boxes(img, boxes):
         if label:
             cv2.putText(img_copy, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
+    if output_path:
+        cv2.imwrite(output_path, img_copy)
+        print(f"Imagen guardada en: {output_path}")
+    
     plt.imshow(cv2.cvtColor(img_copy, cv2.COLOR_BGR2RGB))
     plt.axis("off")
-    plt.show()
+    #plt.show()
 
 
 # -------------------------------
@@ -152,7 +156,7 @@ def draw_boxes(img, boxes):
 def main():
     IMG_DIR = "../SKU110K/images/train"
     LBL_DIR = "../SKU110K/labels/train"
-    MODEL_PATH = "model_logistic_regression.pkl"
+    MODEL_PATH = "../models/model_logistic_regression.pkl"
 
     print("Construyendo dataset...")
     X_train, X_test, Y_train, Y_test = prepare_data(IMG_DIR, LBL_DIR)
