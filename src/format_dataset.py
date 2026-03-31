@@ -7,7 +7,7 @@ from utils import load_image, load_labels, yolo_to_bbox
 random.seed(42)
 np.random.seed(42)
 
-def build_dataset(img_dir, lbl_dir, patch_size=32, max_images=1000):
+def build_dataset(img_dir, lbl_dir, patch_size=32, max_images=100):
     X = []
     Y = []
 

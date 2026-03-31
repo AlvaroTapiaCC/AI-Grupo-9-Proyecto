@@ -1,7 +1,9 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pickle
+import os
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -35,7 +37,7 @@ def train_model(X_train, Y_train):
 # -------------------------------
 # 3. Evaluar modelo
 # -------------------------------
-def evaluate_model(model, X_test, Y_test):
+def evaluate_model(model, X_test, Y_test, metrics_dir=None):
     Y_pred = model.predict(X_test)
 
     acc = accuracy_score(Y_test, Y_pred)
@@ -51,6 +53,59 @@ def evaluate_model(model, X_test, Y_test):
     print(f"F1-score:  {f1:.4f}")
     print("\nMatriz de confusión:")
     print(cm)
+    
+    # Guardar métricas en archivo .txt si se proporciona directorio
+    if metrics_dir:
+        os.makedirs(metrics_dir, exist_ok=True)
+        
+        # Guardar métricas en archivo de texto
+        metrics_file = os.path.join(metrics_dir, "metrics.txt")
+        with open(metrics_file, 'w') as f:
+            f.write("=== Metricas del Modelo de Deteccion ===\n\n")
+            f.write(f"Accuracy:  {acc:.4f}\n")
+            f.write(f"Precision: {prec:.4f}\n")
+            f.write(f"Recall:    {rec:.4f}\n")
+            f.write(f"F1-score:  {f1:.4f}\n\n")
+            f.write("Matriz de confusion:\n")
+            f.write(str(cm))
+        print(f"\n✓ Metricas guardadas en: {metrics_file}")
+        
+        # Guardar matriz de confusión como gráfico
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                    xticklabels=['No Producto', 'Producto'],
+                    yticklabels=['No Producto', 'Producto'])
+        plt.title('Matriz de Confusión')
+        plt.ylabel('Valor Real')
+        plt.xlabel('Valor Predicho')
+        
+        cm_plot_file = os.path.join(metrics_dir, "confusion_matrix.png")
+        plt.savefig(cm_plot_file, dpi=300, bbox_inches='tight')
+        print(f"✓ Matriz de confusión guardada en: {cm_plot_file}")
+        plt.close()
+        
+        # Crear gráfico de métricas
+        metrics_names = ['Accuracy', 'Precision', 'Recall', 'F1-score']
+        metrics_values = [acc, prec, rec, f1]
+        
+        plt.figure(figsize=(10, 6))
+        bars = plt.bar(metrics_names, metrics_values, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+        plt.ylim([0, 1])
+        plt.ylabel('Puntuación')
+        plt.title('Métricas del Modelo')
+        plt.grid(axis='y', alpha=0.3)
+        
+        # Agregar valores en las barras
+        for bar, value in zip(bars, metrics_values):
+            height = bar.get_height()
+            plt.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{value:.4f}',
+                    ha='center', va='bottom')
+        
+        metrics_plot_file = os.path.join(metrics_dir, "metrics_bar_chart.png")
+        plt.savefig(metrics_plot_file, dpi=300, bbox_inches='tight')
+        print(f"✓ Gráfico de métricas guardado en: {metrics_plot_file}")
+        plt.close()
 
 
 # -------------------------------
