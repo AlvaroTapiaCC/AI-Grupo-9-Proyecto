@@ -2,12 +2,13 @@ import os
 import cv2
 import numpy as np
 import random
+from tqdm import tqdm
 from utils import load_image, load_labels, yolo_to_bbox
 
 random.seed(42)
 np.random.seed(42)
 
-def build_dataset(img_dir, lbl_dir, patch_size=32, max_images=100):
+def build_dataset(img_dir, lbl_dir, patch_size=32, max_images=1000):
     X = []
     Y = []
 
@@ -20,7 +21,7 @@ def build_dataset(img_dir, lbl_dir, patch_size=32, max_images=100):
     processed = 0
     skipped = 0
 
-    for img_name in image_files:
+    for img_name in tqdm(image_files, desc="Procesando imágenes", unit="img"):
         img_path = os.path.join(img_dir, img_name)
         lbl_path = os.path.join(lbl_dir, img_name.replace(".jpg", ".txt"))
 

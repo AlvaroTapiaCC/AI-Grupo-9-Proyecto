@@ -1,9 +1,8 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 import pickle
-import os
+from tqdm import tqdm
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -29,15 +28,27 @@ def prepare_data(img_dir, lbl_dir):
 # 2. Entrenar modelo
 # -------------------------------
 def train_model(X_train, Y_train):
-    model = LogisticRegression(max_iter=1000)
-    model.fit(X_train, Y_train)
+    print("Inicializando modelo y entrenando...")
+    
+    # Barra de progreso simulada mientras se entrena
+    with tqdm(total=100, desc="Entrenamiento", unit="%") as pbar:
+        # Actualizar barra al 10% antes de empezar
+        pbar.update(10)
+        
+        # Entrenar el modelo
+        model = LogisticRegression(max_iter=1000, verbose=0, n_jobs=-1)
+        model.fit(X_train, Y_train)
+        
+        # Actualizar barra al 100%
+        pbar.update(90)
+    
     return model
 
 
 # -------------------------------
 # 3. Evaluar modelo
 # -------------------------------
-def evaluate_model(model, X_test, Y_test, metrics_dir=None):
+def evaluate_model(model, X_test, Y_test):
     Y_pred = model.predict(X_test)
 
     acc = accuracy_score(Y_test, Y_pred)
@@ -53,59 +64,6 @@ def evaluate_model(model, X_test, Y_test, metrics_dir=None):
     print(f"F1-score:  {f1:.4f}")
     print("\nMatriz de confusión:")
     print(cm)
-    
-    # Guardar métricas en archivo .txt si se proporciona directorio
-    if metrics_dir:
-        os.makedirs(metrics_dir, exist_ok=True)
-        
-        # Guardar métricas en archivo de texto
-        metrics_file = os.path.join(metrics_dir, "metrics.txt")
-        with open(metrics_file, 'w') as f:
-            f.write("=== Metricas del Modelo de Deteccion ===\n\n")
-            f.write(f"Accuracy:  {acc:.4f}\n")
-            f.write(f"Precision: {prec:.4f}\n")
-            f.write(f"Recall:    {rec:.4f}\n")
-            f.write(f"F1-score:  {f1:.4f}\n\n")
-            f.write("Matriz de confusion:\n")
-            f.write(str(cm))
-        print(f"\n✓ Metricas guardadas en: {metrics_file}")
-        
-        # Guardar matriz de confusión como gráfico
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                    xticklabels=['No Producto', 'Producto'],
-                    yticklabels=['No Producto', 'Producto'])
-        plt.title('Matriz de Confusión')
-        plt.ylabel('Valor Real')
-        plt.xlabel('Valor Predicho')
-        
-        cm_plot_file = os.path.join(metrics_dir, "confusion_matrix.png")
-        plt.savefig(cm_plot_file, dpi=300, bbox_inches='tight')
-        print(f"✓ Matriz de confusión guardada en: {cm_plot_file}")
-        plt.close()
-        
-        # Crear gráfico de métricas
-        metrics_names = ['Accuracy', 'Precision', 'Recall', 'F1-score']
-        metrics_values = [acc, prec, rec, f1]
-        
-        plt.figure(figsize=(10, 6))
-        bars = plt.bar(metrics_names, metrics_values, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
-        plt.ylim([0, 1])
-        plt.ylabel('Puntuación')
-        plt.title('Métricas del Modelo')
-        plt.grid(axis='y', alpha=0.3)
-        
-        # Agregar valores en las barras
-        for bar, value in zip(bars, metrics_values):
-            height = bar.get_height()
-            plt.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{value:.4f}',
-                    ha='center', va='bottom')
-        
-        metrics_plot_file = os.path.join(metrics_dir, "metrics_bar_chart.png")
-        plt.savefig(metrics_plot_file, dpi=300, bbox_inches='tight')
-        print(f"✓ Gráfico de métricas guardado en: {metrics_plot_file}")
-        plt.close()
 
 
 # -------------------------------
@@ -116,19 +74,25 @@ def detect_products(model, img_path, patch_size=32, step=16, threshold=0.7):
     h, w, _ = img.shape
 
     boxes = []
+    
+    # Calcular número total de ventanas
+    total_windows = ((h - patch_size) // step) * ((w - patch_size) // step)
 
-    for y in range(0, h - patch_size, step):
-        for x in range(0, w - patch_size, step):
+    with tqdm(total=total_windows, desc="Detectando productos", unit="ventana") as pbar:
+        for y in range(0, h - patch_size, step):
+            for x in range(0, w - patch_size, step):
 
-            patch = img[y:y+patch_size, x:x+patch_size]
-            patch = cv2.resize(patch, (patch_size, patch_size))
+                patch = img[y:y+patch_size, x:x+patch_size]
+                patch = cv2.resize(patch, (patch_size, patch_size))
 
-            X = patch.flatten().reshape(1, -1) / 255.0
+                X = patch.flatten().reshape(1, -1) / 255.0
 
-            prob = model.predict_proba(X)[0][1]
+                prob = model.predict_proba(X)[0][1]
 
-            if prob > threshold:
-                boxes.append((x, y, x+patch_size, y+patch_size, prob))
+                if prob > threshold:
+                    boxes.append((x, y, x+patch_size, y+patch_size, prob))
+                
+                pbar.update(1)
 
     # Aplicar NMS para eliminar duplicados
     boxes = non_maximum_suppression(boxes, iou_threshold=0.3)
@@ -204,37 +168,3 @@ def draw_boxes(img, boxes, output_path=None):
     plt.axis("off")
     #plt.show()
 
-
-# -------------------------------
-# 6. MAIN
-# -------------------------------
-def main():
-    IMG_DIR = "../SKU110K/images/train"
-    LBL_DIR = "../SKU110K/labels/train"
-    MODEL_PATH = "../models/model_logistic_regression.pkl"
-
-    print("Construyendo dataset...")
-    X_train, X_test, Y_train, Y_test = prepare_data(IMG_DIR, LBL_DIR)
-
-    print("Entrenando modelo...")
-    model = train_model(X_train, Y_train)
-    
-    print(f"Guardando modelo en {MODEL_PATH}...")
-    with open(MODEL_PATH, 'wb') as f:
-        pickle.dump(model, f)
-
-    print("Evaluando modelo...")
-    evaluate_model(model, X_test, Y_test)
-
-    # -------- DETECCIÓN --------
-    test_img = "../SKU110K/images/test/test_0.jpg"
-
-    print("\nDetectando productos en imagen...")
-    img, boxes = detect_products(model, test_img)
-
-    print(f"Boxes detectadas (después de NMS): {len(boxes)}")
-    draw_boxes(img, boxes)
-
-
-if __name__ == "__main__":
-    main()

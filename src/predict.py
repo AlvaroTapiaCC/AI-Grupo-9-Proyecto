@@ -7,7 +7,7 @@ import pickle
 import os
 from train import detect_products, draw_boxes
 
-def predict(image_path, model_path="../models/model_logistic_regression.pkl", output_dir="../results/images"):
+def predict(image_path, model_path="../models/model_logistic_regression.pkl", output_dir="../results"):
     """
     Detecta productos en una imagen usando el modelo entrenado.
     
