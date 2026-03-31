@@ -4,7 +4,10 @@ Main script para orquestar el pipeline completo de detección de productos en go
 
 import pickle
 import os
+import sys
 from train import prepare_data, train_model, evaluate_model, detect_products, draw_boxes
+
+sys.stdout.flush()
 
 def main():
     """Pipeline principal: preparar datos, entrenar y evaluar modelo."""

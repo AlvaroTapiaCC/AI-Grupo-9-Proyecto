@@ -56,7 +56,7 @@ def evaluate_model(model, X_test, Y_test):
 # -------------------------------
 # 4. Sliding Window Detection
 # -------------------------------
-def detect_products(model, img_path, patch_size=64, step=32, threshold=0.7):
+def detect_products(model, img_path, patch_size=32, step=16, threshold=0.7):
     img = cv2.imread(img_path)
     h, w, _ = img.shape
 
