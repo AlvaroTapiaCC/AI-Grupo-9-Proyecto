@@ -1,4 +1,4 @@
-# Conteo de productos en gondolas
+# Categorizacion de productos "checkout"
 
 ## Integrantes:
 
@@ -8,7 +8,7 @@
 
 ### Dataset:
 
-https://www.kaggle.com/datasets/thedatasith/sku110k-annotations
+https://www.kaggle.com/datasets/diyer22/retail-product-checkout-dataset
 
 ---
 
