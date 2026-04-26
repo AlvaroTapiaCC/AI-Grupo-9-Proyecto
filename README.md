@@ -18,19 +18,19 @@ https://www.kaggle.com/datasets/diyer22/retail-product-checkout-dataset
 
 ### Requerimientos
 
-Se deben instalar todas las dependencias de requirements.txt   
-Adicionalmente se debe instalar torch y torchvision correspondiente al SO y hardware de su PC   
-Si tiene GPU NVDIA instale pytorch con opcion para CUDA (version correspondiente) 
+-Se deben instalar todas las dependencias de requirements.txt   
+-Adicionalmente se debe instalar torch y torchvision correspondiente al SO y hardware de su PC   
+-Si tiene GPU NVDIA instale pytorch con opcion para CUDA (version correspondiente) 
 
 ### Ejecucion
 
-El programa `main.py` ejecuta el entrenamiento y metricas para un modelo y "nivel" indicado   
-Antes de ejecutar ajuste las variables encontradas en `src/config.py`   
-Aqui debe indicar si el modelo es `"mlp"` o `"cnn"`, guardando la variable `model`   
-Ademas debe especificar la dificultad de las imagenes a utilizar, ya sea `"easy"`, `"medium"` o `"hard"` , guardando la variable `level`   
-Por ultimo y mas importante, si va a usar `MLP` debe indicar si va a realizar el encoding, indicando `True` o `False` en la variable `encode`   
-El encoding solo se necesita realizar una vez para cada dificultad, luego se puede entrenar tomando los embeddings guardados   
-Los resultados y metricas seran guardados en la carpeta `results/`   
+-El programa `main.py` ejecuta el entrenamiento y metricas para un modelo y "nivel" indicado   
+-Antes de ejecutar ajuste las variables encontradas en `src/config.py`   
+-Aqui debe indicar si el modelo es `"mlp"` o `"cnn"`, guardando la variable `model`   
+-Ademas debe especificar la dificultad de las imagenes a utilizar, ya sea `"easy"`, `"medium"` o `"hard"` , guardando la variable `level`   
+-Por ultimo y mas importante, si va a usar `MLP` debe indicar si va a realizar el encoding, indicando `True` o `False` en la variable `encode`   
+-El encoding solo se necesita realizar una vez para cada dificultad, luego se puede entrenar tomando los embeddings guardados   
+-Los resultados y metricas seran guardados en la carpeta `results/`   
 
 ### Estructura del programa
 
