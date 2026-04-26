@@ -1,13 +1,12 @@
-SKU110K/
-*.zip
-*.tar
-*.gz
+dataset/
+
+embeddings/
 
 .cache/
 __pycache__/
 *.pyc
 
-venv/
-.env/
+.venv/
+
 
 .vscode/
