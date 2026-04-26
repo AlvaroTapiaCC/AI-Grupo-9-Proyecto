@@ -12,6 +12,8 @@ def main():
         print("[INFO] Building embeddings...")
         clip_encoder.build_embeddings()
         print("[DONE]")
+    else:
+        print("[INFO] Embeddings already built")
 
     print("[INFO] Training MLP...")
     model, test_metrics = train_mlp(

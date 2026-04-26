@@ -2,7 +2,7 @@ from torch import cuda
 
 
 # GENERAL
-level = "medium"      # easy/medium/hard
+level = "hard"      # easy/medium/hard
 device = "cuda" if cuda.is_available() else "cpu"
 
 #DATA
