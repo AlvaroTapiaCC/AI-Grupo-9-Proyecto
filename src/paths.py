@@ -5,8 +5,7 @@ from .config import level, model
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-RESULTS_PATH = PROJECT_ROOT / "results" / model
-
+RESULTS_PATH = PROJECT_ROOT / "results" / model / level
 
 DATASET_PATH = PROJECT_ROOT / "dataset" 
 ANNOTATIONS_PATH = DATASET_PATH / "annotations"

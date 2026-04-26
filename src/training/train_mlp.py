@@ -9,7 +9,7 @@ from ..models.mlp import MLPClassifier
 from .. import config
 
 from ..data.label_encoder import LabelEncoder
-from ..paths import EMBEDDINGS_PATH
+from ..paths import EMBEDDINGS_PATH, RESULTS_PATH
 
 from .metrics import get_predictions, compute_all_metrics
 from ..utils.checkpointing import save_checkpoint
@@ -104,7 +104,7 @@ def train_mlp(train_path, test_path):
         "lr": config.lr,
         "model": config.model,
         },
-        "results/mlp/config.json"
+        RESULTS_PATH / "config.json"
     )
 
     for epoch in range(config.epochs):
@@ -135,7 +135,7 @@ def train_mlp(train_path, test_path):
             model=model,
             optimizer=optimizer,
             epoch=epoch,
-            path="results/mlp/checkpoints/last.pt",
+            path=RESULTS_PATH / "checkpoints/last.pt",
             metrics=metrics_snapshot,
         )
 
@@ -146,7 +146,7 @@ def train_mlp(train_path, test_path):
                 model=model,
                 optimizer=optimizer,
                 epoch=epoch,
-                path="results/mlp/checkpoints/best.pt",
+                path=RESULTS_PATH / "checkpoints/best.pt",
                 metrics=metrics_snapshot,
             )
 
@@ -161,7 +161,7 @@ def train_mlp(train_path, test_path):
     val_metrics = compute_all_metrics(y_true, y_pred)
 
     # SAVE RESULTS
-    save_history(history, "results/mlp/history.json")
-    save_metrics(val_metrics, "results/mlp/metrics.json")
+    save_history(history, RESULTS_PATH / "history.json")
+    save_metrics(val_metrics, RESULTS_PATH / "metrics.json")
 
     return model, val_metrics
