@@ -8,14 +8,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_PATH = PROJECT_ROOT / "results" / model / level
 
 DATASET_PATH = PROJECT_ROOT / "dataset" 
-ANNOTATIONS_PATH = DATASET_PATH / "annotations"
+ANNOTATIONS_PATH = DATASET_PATH / "annotations" / level
 IMAGES_PATH = DATASET_PATH / "retail_product_checkout" / level
 
-TRAIN_ANNOTATIONS = ANNOTATIONS_PATH / level / "train_annotations.json"
-TEST_ANNOTATIONS = ANNOTATIONS_PATH / level / "test_annotations.json"
-VAL_ANNOTATIONS = ANNOTATIONS_PATH / level / "val_annotations.json"
+TRAIN_ANNOTATIONS = ANNOTATIONS_PATH / "train_annotations.json"
+TEST_ANNOTATIONS = ANNOTATIONS_PATH / "test_annotations.json"
+VAL_ANNOTATIONS = ANNOTATIONS_PATH / "val_annotations.json"
 
-CATEGORIES_PATH = ANNOTATIONS_PATH / "categories.json"
+TRAIN_IMAGES = IMAGES_PATH / "train"
+TEST_IMAGES = IMAGES_PATH / "test"
+VAL_IMAGES = IMAGES_PATH / "val"
+
+CATEGORIES_PATH = DATASET_PATH / "annotations" / "categories.json"
 
 EMBEDDINGS_PATH = PROJECT_ROOT/ "embeddings" / level
 TRAIN_EMB = EMBEDDINGS_PATH / "train.pt"

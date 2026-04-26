@@ -3,19 +3,12 @@ from pathlib import Path
 
 
 class LabelEncoder:
-    """
-    Handles mapping between supercategory IDs and continuous class indices.
-    Ensures reproducibility across train/val/test and inference.
-    """
 
     def __init__(self):
         self.id2idx = {}
         self.idx2id = {}
 
     def fit(self, labels):
-        """
-        labels: iterable of supercategory_ids
-        """
         unique_labels = sorted(set(labels))
 
         self.id2idx = {label: idx for idx, label in enumerate(unique_labels)}
@@ -52,7 +45,7 @@ class LabelEncoder:
             data = json.load(f)
 
         enc = cls()
-        enc.id2idx = {int(k): v for k, v in data["id2idx"].items()}
+        enc.id2idx = {k: v for k, v in data["id2idx"].items()}
         enc.idx2id = {int(k): v for k, v in data["idx2id"].items()}
 
         return enc

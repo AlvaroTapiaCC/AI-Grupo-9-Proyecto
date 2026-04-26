@@ -2,14 +2,14 @@ from torch import cuda
 
 
 # GENERAL
-level = "easy"      # easy/medium/hard
+level = "medium"      # easy/medium/hard
 device = "cuda" if cuda.is_available() else "cpu"
 
 #DATA
 batch_size = 32
 
 #ENCODING
-encode = False
+encode = True
 
 #TRAINING
 epochs = 10
