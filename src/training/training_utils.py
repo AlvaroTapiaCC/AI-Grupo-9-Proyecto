@@ -13,8 +13,8 @@ def run_epoch(loader, model, criterion, optimizer, device):
         for x, y in loader:
             x = x.to(device).float()
             y = y.to(device)
-
-            logits = model(x)
+            
+            logits = model(x)   
             loss = criterion(logits, y)
 
             if is_train:

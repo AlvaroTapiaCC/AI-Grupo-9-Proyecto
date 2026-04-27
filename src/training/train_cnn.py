@@ -2,6 +2,7 @@ import json
 import shutil
 import torch.nn as nn
 import torch.optim as optim
+import torch.backends.cudnn as cudnn
 
 from .. import config
 
@@ -36,33 +37,43 @@ def train_cnn():
     label_encoder = LabelEncoder.load(LABEL_ENCODER_PATH)
     num_classes = label_encoder.num_classes()
 
+    print("[INFO] Loading Train/Test/Val Datasets...")
+
     train_dataset = RetailDataset(
         TRAIN_ANNOTATIONS,
         split="train",
         transform=get_train_transforms(),
-        label_encoder_path=LABEL_ENCODER_PATH
-    )
-
-    val_dataset = RetailDataset(
-        VAL_ANNOTATIONS,
-        split="val",
-        transform=get_val_transforms(),
-        label_encoder_path=LABEL_ENCODER_PATH
+        label_encoder_path=LABEL_ENCODER_PATH,
+        preload=True
     )
 
     test_dataset = RetailDataset(
         TEST_ANNOTATIONS,
         split="test",
         transform=get_val_transforms(),
-        label_encoder_path=LABEL_ENCODER_PATH
+        label_encoder_path=LABEL_ENCODER_PATH,
+        preload=True
+    )
+    
+    val_dataset = RetailDataset(
+        VAL_ANNOTATIONS,
+        split="val",
+        transform=get_val_transforms(),
+        label_encoder_path=LABEL_ENCODER_PATH,
+        preload=True
     )
 
-    train_loader, val_loader, test_loader = get_dataloaders(
+    train_loader, test_loader, val_loader = get_dataloaders(
         train_dataset,
-        val_dataset,
         test_dataset,
+        val_dataset,
         batch_size=config.batch_size
     )
+    
+    print("[INFO] DONE")
+    
+    cudnn.benchmark = False
+    cudnn.enabled = False
 
     model = CNNClassifier(
         in_channels=3,
@@ -78,7 +89,7 @@ def train_cnn():
 
         print("[INFO] Loaded best global CNN model")
 
-        y_true, y_pred = get_predictions(model, test_loader, device)
+        y_true, y_pred = get_predictions(model, val_loader, device)
         metrics = compute_all_metrics(y_true, y_pred)
 
         save_metrics(metrics, LAST_METRICS_PATH / "metrics.json")
@@ -118,6 +129,8 @@ def train_cnn():
         },
         LAST_MODEL_PATH / "config.json",
     )
+    
+    print("[INFO] Training CNNClassifier...")
 
     for epoch in range(config.epochs):
 
@@ -126,7 +139,7 @@ def train_cnn():
         )
 
         test_loss, test_acc = run_epoch(
-            val_loader, model, criterion, None, device
+            test_loader, model, criterion, None, device
         )
 
         history["train_loss"].append(train_loss)
@@ -149,7 +162,7 @@ def train_cnn():
 
     save_model(model, LAST_MODEL_PATH / "last.pt")
 
-    y_true, y_pred = get_predictions(model, test_loader, device)
+    y_true, y_pred = get_predictions(model, val_loader, device)
     metrics = compute_all_metrics(y_true, y_pred)
 
     save_history(history, LAST_MODEL_PATH / "history.json")

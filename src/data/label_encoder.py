@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from ..utils.io import load_json
 
 
 class LabelEncoder:
@@ -39,13 +40,10 @@ class LabelEncoder:
 
     @classmethod
     def load(cls, path):
-        path = Path(path)
-
-        with open(path, "r") as f:
-            data = json.load(f)
+        data = load_json(path)
 
         enc = cls()
-        enc.id2idx = {k: v for k, v in data["id2idx"].items()}
+        enc.id2idx = {int(k): v for k, v in data["id2idx"].items()}
         enc.idx2id = {int(k): v for k, v in data["idx2id"].items()}
 
         return enc

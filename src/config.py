@@ -12,11 +12,11 @@ batch_size = 32
 encode = False
 
 #TRAINING
-epochs = 10
+epochs = 5
 lr = 1e-3
 
 # MODEL
-model = "cnn"       # "mlp" or "cnn"
+model = "mlp"       # "mlp" or "cnn"
 train_new = True    # if True, train new model, else use best.pt
 
 # CNN

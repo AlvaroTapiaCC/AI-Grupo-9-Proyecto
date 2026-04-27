@@ -89,6 +89,8 @@ def train_mlp(train_path, test_path):
         LAST_MODEL_PATH / "config.json",
     )
 
+    print("[INFO] Training MLPClassifier...")
+
     for epoch in range(config.epochs):
 
         train_loss, train_acc = run_epoch(

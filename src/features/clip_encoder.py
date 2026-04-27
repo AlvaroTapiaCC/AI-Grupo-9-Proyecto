@@ -1,5 +1,3 @@
-# src/features/clip_encoder.py
-
 import json
 import shutil
 import torch
@@ -17,6 +15,8 @@ from ..paths import (
     EMBEDDINGS_PATH,
 )
 from ..data.label_encoder import LabelEncoder
+from ..utils.io import load_json
+from ..data.data_utils import build_category_mapping, build_image_mapping
 
 
 # ensure base dir exists
@@ -24,25 +24,6 @@ EMBEDDINGS_PATH.mkdir(parents=True, exist_ok=True)
 
 model, preprocess = clip.load("ViT-B/32", device=device)
 model.eval()
-
-
-def load_json(path):
-    with open(path, "r") as f:
-        return json.load(f)
-
-
-def build_category_mapping(cats_json):
-    return {
-        c["id"]: c["supercat_id"]
-        for c in cats_json["categories"]
-    }
-
-
-def build_image_mapping(images):
-    return {
-        img["id"]: img["file_name"]
-        for img in images
-    }
 
 
 def clear_embeddings():
@@ -157,7 +138,6 @@ def build_embeddings():
     label_encoder = LabelEncoder()
     label_encoder.fit(all_labels)
 
-    # save encoder for reproducibility / inference
     label_encoder.save(EMBEDDINGS_PATH / "label_encoder.json")
 
     process_split("train", TRAIN_ANNOTATIONS, cat_map, label_encoder)

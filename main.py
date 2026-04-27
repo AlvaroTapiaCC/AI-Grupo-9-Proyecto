@@ -34,7 +34,6 @@ def main():
                 TEST_EMB
             )
         else:
-            print("[INFO] Training MLP...")
             model_obj, test_metrics = train_mlp(
                 TRAIN_EMB,
                 TEST_EMB
@@ -58,7 +57,6 @@ def main():
             print("[INFO] Using Pre Trained CNN...")
             model_obj, test_metrics = train_cnn()
         else:
-            print("[INFO] Training CNN...")
             model_obj, test_metrics = train_cnn()
 
         print("\n[INFO] Final test metrics:")
