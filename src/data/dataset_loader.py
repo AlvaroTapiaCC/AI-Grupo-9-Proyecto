@@ -1,15 +1,16 @@
-import json
-from PIL import Image
-from torch.utils.data import Dataset
 import torch
+from torch.utils.data import Dataset, DataLoader, TensorDataset
+from PIL import Image
 
 from ..paths import IMAGES_PATH
 from .label_encoder import LabelEncoder
+from ..utils.io import load_json
 
 
-def load_json(path):
-    with open(path, "r") as f:
-        return json.load(f)
+def load_embeddings(path):
+    data = torch.load(path)
+    return TensorDataset(data["embeddings"], data["labels"])
+
 
 
 class RetailDataset(Dataset):
@@ -48,13 +49,18 @@ class RetailDataset(Dataset):
             if supercat_id is None:
                 continue
 
-            label = (
-                self.label_encoder.id2idx[supercat_id]
-                if self.label_encoder is not None
-                else supercat_id
-            )
+            if self.label_encoder is not None:
+                label = self.label_encoder.id2idx.get(supercat_id, None)
+                if label is None:
+                    continue
+            else:
+                label = supercat_id
 
-            self.samples.append((file_name, ann["bbox"], label))
+            bbox = ann.get("bbox", None)
+            if bbox is None:
+                continue
+
+            self.samples.append((file_name, bbox, label))
 
     def __len__(self):
         return len(self.samples)
@@ -66,9 +72,50 @@ class RetailDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
 
         x, y, w, h = bbox
-        image = image.crop((x, y, x + w, y + h))
+
+        width, height = image.size
+        x1 = max(0, x)
+        y1 = max(0, y)
+        x2 = min(width, x + w)
+        y2 = min(height, y + h)
+
+        image = image.crop((x1, y1, x2, y2))
 
         if self.transform:
             image = self.transform(image)
 
         return image, torch.tensor(label, dtype=torch.long)
+
+
+def get_dataloaders(
+    train_dataset,
+    val_dataset,
+    test_dataset,
+    batch_size: int,
+    num_workers: int = 2
+):
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    return train_loader, val_loader, test_loader

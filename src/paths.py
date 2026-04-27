@@ -26,3 +26,9 @@ TRAIN_EMB = EMBEDDINGS_PATH / "train.pt"
 VAL_EMB = EMBEDDINGS_PATH / "val.pt"
 TEST_EMB = EMBEDDINGS_PATH / "test.pt"
 
+LAST_MODEL_PATH = RESULTS_PATH / "last" / "model"
+BEST_MODEL_PATH = RESULTS_PATH / "best" / "model"
+LAST_METRICS_PATH = RESULTS_PATH / "last" / "metrics"
+BEST_METRICS_PATH = RESULTS_PATH / "best" / "metrics"
+
+LABEL_ENCODER_PATH = EMBEDDINGS_PATH / "label_encoder.json"

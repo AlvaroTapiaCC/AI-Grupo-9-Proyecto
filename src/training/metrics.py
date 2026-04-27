@@ -65,8 +65,8 @@ def plot_and_save_confusion_matrix(
         annot=True,
         fmt="d",
         cmap="Blues",
-        xticklabels=class_names,
-        yticklabels=class_names
+        xticklabels=class_names if class_names is not None else False,
+        yticklabels=class_names if class_names is not None else False
     )
 
     plt.xlabel("Predicted")

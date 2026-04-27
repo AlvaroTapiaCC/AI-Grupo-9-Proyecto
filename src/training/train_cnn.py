@@ -2,13 +2,18 @@ import json
 import shutil
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 
-from ..models.mlp import MLPClassifier
 from .. import config
 
+from ..models.cnn import CNNClassifier
+from ..data.dataset_loader import RetailDataset, get_dataloaders
 from ..data.label_encoder import LabelEncoder
+from ..data.transforms import get_train_transforms, get_val_transforms
+
 from ..paths import (
+    TRAIN_ANNOTATIONS,
+    TEST_ANNOTATIONS,
+    VAL_ANNOTATIONS,
     LABEL_ENCODER_PATH,
     LAST_MODEL_PATH,
     BEST_MODEL_PATH,
@@ -18,35 +23,60 @@ from ..paths import (
 
 from .metrics import get_predictions, compute_all_metrics, plot_and_save_confusion_matrix
 from .diagnostics import analyze_training, compare_with_best
-from .training_utils import run_epoch, load_embeddings
+from .training_utils import run_epoch
+
 from ..utils.model_io import save_model, load_model
 from ..utils.io import save_history, save_metrics, save_config
 
 
 
-def train_mlp(train_path, test_path):
+def train_cnn():
     device = config.device
 
-    train_dataset = load_embeddings(train_path)
-    test_dataset = load_embeddings(test_path)
-
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
-
     label_encoder = LabelEncoder.load(LABEL_ENCODER_PATH)
-
-    input_dim = train_dataset.tensors[0].shape[1]
     num_classes = label_encoder.num_classes()
 
-    model = MLPClassifier(input_dim, num_classes).to(device)
+    train_dataset = RetailDataset(
+        TRAIN_ANNOTATIONS,
+        split="train",
+        transform=get_train_transforms(),
+        label_encoder_path=LABEL_ENCODER_PATH
+    )
 
-    # LOAD BEST GLOBAL (USANDO load_model)
+    val_dataset = RetailDataset(
+        VAL_ANNOTATIONS,
+        split="val",
+        transform=get_val_transforms(),
+        label_encoder_path=LABEL_ENCODER_PATH
+    )
+
+    test_dataset = RetailDataset(
+        TEST_ANNOTATIONS,
+        split="test",
+        transform=get_val_transforms(),
+        label_encoder_path=LABEL_ENCODER_PATH
+    )
+
+    train_loader, val_loader, test_loader = get_dataloaders(
+        train_dataset,
+        val_dataset,
+        test_dataset,
+        batch_size=config.batch_size
+    )
+
+    model = CNNClassifier(
+        in_channels=3,
+        num_classes=num_classes,
+        image_h=config.image_size[0],
+        image_w=config.image_size[1]
+    ).to(device)
+
     best_global_path = BEST_MODEL_PATH / "best.pt"
     if not config.train_new and best_global_path.exists():
         model = load_model(model, best_global_path, device)
         model.eval()
 
-        print("[INFO] Loaded best global model")
+        print("[INFO] Loaded best global CNN model")
 
         y_true, y_pred = get_predictions(model, test_loader, device)
         metrics = compute_all_metrics(y_true, y_pred)
@@ -96,7 +126,7 @@ def train_mlp(train_path, test_path):
         )
 
         test_loss, test_acc = run_epoch(
-            test_loader, model, criterion, None, device
+            val_loader, model, criterion, None, device
         )
 
         history["train_loss"].append(train_loss)
@@ -112,12 +142,11 @@ def train_mlp(train_path, test_path):
         print(
             f"Epoch {epoch+1}/{config.epochs} | "
             f"train loss {train_loss:.4f} acc {train_acc:.4f} | "
-            f"test loss {test_loss:.4f} acc {test_acc:.4f}"
+            f"val loss {test_loss:.4f} acc {test_acc:.4f}"
         )
 
     model.load_state_dict(best_model_state)
 
-    # SAVE LAST MODEL
     save_model(model, LAST_MODEL_PATH / "last.pt")
 
     y_true, y_pred = get_predictions(model, test_loader, device)
@@ -128,7 +157,7 @@ def train_mlp(train_path, test_path):
     plot_and_save_confusion_matrix(
         y_true, y_pred, LAST_METRICS_PATH / "confusion_matrix.png"
     )
-    
+
     if config.train_new:
         status = analyze_training(
             {
@@ -140,7 +169,6 @@ def train_mlp(train_path, test_path):
         )
         print(f"\n[DIAGNOSTIC] {status}")
 
-    # COMPARE WITH GLOBAL BEST
     best_metrics_file = BEST_METRICS_PATH / "metrics.json"
     best_history_file = BEST_MODEL_PATH / "history.json"
 
@@ -149,14 +177,15 @@ def train_mlp(train_path, test_path):
         with open(best_metrics_file, "r") as f:
             best_metrics = json.load(f)
         with open(best_history_file, "r") as f:
-                best_history = json.load(f)
+            best_history = json.load(f)
+
         rel_status = compare_with_best(metrics, best_metrics, history, best_history)
         print(f"[DIAGNOSTIC] {rel_status}\n")
-        
+
         is_better = metrics["accuracy"] > best_metrics["accuracy"]
 
     if is_better:
-        print("[INFO] New global best  MLP model")
+        print("[INFO] New global best CNN model")
 
         save_metrics(metrics, BEST_METRICS_PATH / "metrics.json")
         plot_and_save_confusion_matrix(

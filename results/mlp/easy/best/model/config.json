@@ -1,8 +1,8 @@
 {
-    "level": "hard",
+    "level": "easy",
     "device": "cuda",
     "batch_size": 32,
-    "epochs": 10,
+    "epochs": 20,
     "lr": 0.001,
     "model": "mlp"
 }

@@ -1,11 +1,17 @@
 from torchvision import transforms
 
+from .. import config
 
-def get_train_transforms():
+
+def get_train_transforms(image_size=config.image_size):
     return transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        transforms.Resize(image_size),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ColorJitter(
+            brightness=0.2,
+            contrast=0.2,
+            saturation=0.2
+        ),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=[0.485, 0.456, 0.406],
@@ -14,9 +20,9 @@ def get_train_transforms():
     ])
 
 
-def get_val_transforms():
+def get_val_transforms(image_size=config.image_size):
     return transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize(image_size),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=[0.485, 0.456, 0.406],
