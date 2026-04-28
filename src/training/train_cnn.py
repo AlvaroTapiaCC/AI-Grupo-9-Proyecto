@@ -3,18 +3,17 @@ import shutil
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+from torch.utils.data import DataLoader
 
 from .. import config
 
 from ..models.cnn import CNNClassifier
-from ..data.dataset_loader import RetailDataset, get_dataloaders
 from ..data.label_encoder import LabelEncoder
-from ..data.transforms import get_train_transforms, get_val_transforms
 
 from ..paths import (
-    TRAIN_ANNOTATIONS,
-    TEST_ANNOTATIONS,
-    VAL_ANNOTATIONS,
+    TRAIN_TENS,
+    TEST_TENS,
+    VAL_TENS,
     LABEL_ENCODER_PATH,
     LAST_MODEL_PATH,
     BEST_MODEL_PATH,
@@ -24,11 +23,10 @@ from ..paths import (
 
 from .metrics import get_predictions, compute_all_metrics, plot_and_save_confusion_matrix
 from .diagnostics import analyze_training, compare_with_best
-from .training_utils import run_epoch
+from .training_utils import run_epoch, load_tensors
 
-from ..utils.model_io import save_model, load_model
+from ..utils.model_io import save_model
 from ..utils.io import save_history, save_metrics, save_config
-
 
 
 def train_cnn():
@@ -37,41 +35,18 @@ def train_cnn():
     label_encoder = LabelEncoder.load(LABEL_ENCODER_PATH)
     num_classes = label_encoder.num_classes()
 
-    print("[INFO] Loading Train/Test/Val Datasets...")
+    print("[INFO] Loading precomputed tensors...")
 
-    train_dataset = RetailDataset(
-        TRAIN_ANNOTATIONS,
-        split="train",
-        transform=get_train_transforms(),
-        label_encoder_path=LABEL_ENCODER_PATH,
-        preload=True
-    )
+    train_dataset = load_tensors(TRAIN_TENS)
+    test_dataset = load_tensors(TEST_TENS)
+    val_dataset = load_tensors(VAL_TENS)
 
-    test_dataset = RetailDataset(
-        TEST_ANNOTATIONS,
-        split="test",
-        transform=get_val_transforms(),
-        label_encoder_path=LABEL_ENCODER_PATH,
-        preload=True
-    )
-    
-    val_dataset = RetailDataset(
-        VAL_ANNOTATIONS,
-        split="val",
-        transform=get_val_transforms(),
-        label_encoder_path=LABEL_ENCODER_PATH,
-        preload=True
-    )
+    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
 
-    train_loader, test_loader, val_loader = get_dataloaders(
-        train_dataset,
-        test_dataset,
-        val_dataset,
-        batch_size=config.batch_size
-    )
-    
     print("[INFO] DONE")
-    
+
     cudnn.benchmark = False
     cudnn.enabled = False
 
@@ -81,23 +56,6 @@ def train_cnn():
         image_h=config.image_size[0],
         image_w=config.image_size[1]
     ).to(device)
-
-    best_global_path = BEST_MODEL_PATH / "best.pt"
-    if not config.train_new and best_global_path.exists():
-        model = load_model(model, best_global_path, device)
-        model.eval()
-
-        print("[INFO] Loaded best global CNN model")
-
-        y_true, y_pred = get_predictions(model, val_loader, device)
-        metrics = compute_all_metrics(y_true, y_pred)
-
-        save_metrics(metrics, LAST_METRICS_PATH / "metrics.json")
-        plot_and_save_confusion_matrix(
-            y_true, y_pred, LAST_METRICS_PATH / "confusion_matrix.png"
-        )
-
-        return model, metrics
 
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
     criterion = nn.CrossEntropyLoss()
@@ -129,7 +87,7 @@ def train_cnn():
         },
         LAST_MODEL_PATH / "config.json",
     )
-    
+
     print("[INFO] Training CNNClassifier...")
 
     for epoch in range(config.epochs):
@@ -155,7 +113,7 @@ def train_cnn():
         print(
             f"Epoch {epoch+1}/{config.epochs} | "
             f"train loss {train_loss:.4f} acc {train_acc:.4f} | "
-            f"val loss {test_loss:.4f} acc {test_acc:.4f}"
+            f"test loss {test_loss:.4f} acc {test_acc:.4f}"
         )
 
     model.load_state_dict(best_model_state)
@@ -171,16 +129,15 @@ def train_cnn():
         y_true, y_pred, LAST_METRICS_PATH / "confusion_matrix.png"
     )
 
-    if config.train_new:
-        status = analyze_training(
-            {
-                "train_acc": [history["train_acc"][best_epoch]],
-                "test_acc": [history["test_acc"][best_epoch]],
-                "train_loss": [history["train_loss"][best_epoch]],
-                "test_loss": [history["test_loss"][best_epoch]],
-            }
-        )
-        print(f"\n[DIAGNOSTIC] {status}")
+    status = analyze_training(
+        {
+            "train_acc": [history["train_acc"][best_epoch]],
+            "test_acc": [history["test_acc"][best_epoch]],
+            "train_loss": [history["train_loss"][best_epoch]],
+            "test_loss": [history["test_loss"][best_epoch]],
+        }
+    )
+    print(f"\n[DIAGNOSTIC] {status}")
 
     best_metrics_file = BEST_METRICS_PATH / "metrics.json"
     best_history_file = BEST_MODEL_PATH / "history.json"

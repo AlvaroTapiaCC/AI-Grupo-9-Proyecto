@@ -33,3 +33,7 @@ def run_epoch(loader, model, criterion, optimizer, device):
 def load_embeddings(path):
     data = torch.load(path)
     return TensorDataset(data["embeddings"], data["labels"])
+
+def load_tensors(path):
+    data = torch.load(path)
+    return TensorDataset(data["images"], data["labels"])

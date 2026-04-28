@@ -2,6 +2,8 @@ dataset/
 
 embeddings/
 
+tensors/
+
 .cache/
 __pycache__/
 *.pyc

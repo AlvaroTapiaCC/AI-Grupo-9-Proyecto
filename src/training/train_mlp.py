@@ -9,6 +9,8 @@ from .. import config
 
 from ..data.label_encoder import LabelEncoder
 from ..paths import (
+    TRAIN_EMB,
+    TEST_EMB,
     LABEL_ENCODER_PATH,
     LAST_MODEL_PATH,
     BEST_MODEL_PATH,
@@ -19,16 +21,15 @@ from ..paths import (
 from .metrics import get_predictions, compute_all_metrics, plot_and_save_confusion_matrix
 from .diagnostics import analyze_training, compare_with_best
 from .training_utils import run_epoch, load_embeddings
-from ..utils.model_io import save_model, load_model
+from ..utils.model_io import save_model
 from ..utils.io import save_history, save_metrics, save_config
 
 
-
-def train_mlp(train_path, test_path):
+def train_mlp():
     device = config.device
 
-    train_dataset = load_embeddings(train_path)
-    test_dataset = load_embeddings(test_path)
+    train_dataset = load_embeddings(TRAIN_EMB)
+    test_dataset = load_embeddings(TEST_EMB)
 
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
@@ -39,24 +40,6 @@ def train_mlp(train_path, test_path):
     num_classes = label_encoder.num_classes()
 
     model = MLPClassifier(input_dim, num_classes).to(device)
-
-    # LOAD BEST GLOBAL (USANDO load_model)
-    best_global_path = BEST_MODEL_PATH / "best.pt"
-    if not config.train_new and best_global_path.exists():
-        model = load_model(model, best_global_path, device)
-        model.eval()
-
-        print("[INFO] Loaded best global model")
-
-        y_true, y_pred = get_predictions(model, test_loader, device)
-        metrics = compute_all_metrics(y_true, y_pred)
-
-        save_metrics(metrics, LAST_METRICS_PATH / "metrics.json")
-        plot_and_save_confusion_matrix(
-            y_true, y_pred, LAST_METRICS_PATH / "confusion_matrix.png"
-        )
-
-        return model, metrics
 
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
     criterion = nn.CrossEntropyLoss()
@@ -119,7 +102,6 @@ def train_mlp(train_path, test_path):
 
     model.load_state_dict(best_model_state)
 
-    # SAVE LAST MODEL
     save_model(model, LAST_MODEL_PATH / "last.pt")
 
     y_true, y_pred = get_predictions(model, test_loader, device)
@@ -130,19 +112,17 @@ def train_mlp(train_path, test_path):
     plot_and_save_confusion_matrix(
         y_true, y_pred, LAST_METRICS_PATH / "confusion_matrix.png"
     )
-    
-    if config.train_new:
-        status = analyze_training(
-            {
-                "train_acc": [history["train_acc"][best_epoch]],
-                "test_acc": [history["test_acc"][best_epoch]],
-                "train_loss": [history["train_loss"][best_epoch]],
-                "test_loss": [history["test_loss"][best_epoch]],
-            }
-        )
-        print(f"\n[DIAGNOSTIC] {status}")
 
-    # COMPARE WITH GLOBAL BEST
+    status = analyze_training(
+        {
+            "train_acc": [history["train_acc"][best_epoch]],
+            "test_acc": [history["test_acc"][best_epoch]],
+            "train_loss": [history["train_loss"][best_epoch]],
+            "test_loss": [history["test_loss"][best_epoch]],
+        }
+    )
+    print(f"\n[DIAGNOSTIC] {status}")
+
     best_metrics_file = BEST_METRICS_PATH / "metrics.json"
     best_history_file = BEST_MODEL_PATH / "history.json"
 
@@ -151,14 +131,15 @@ def train_mlp(train_path, test_path):
         with open(best_metrics_file, "r") as f:
             best_metrics = json.load(f)
         with open(best_history_file, "r") as f:
-                best_history = json.load(f)
+            best_history = json.load(f)
+
         rel_status = compare_with_best(metrics, best_metrics, history, best_history)
         print(f"[DIAGNOSTIC] {rel_status}\n")
-        
+
         is_better = metrics["accuracy"] > best_metrics["accuracy"]
 
     if is_better:
-        print("[INFO] New global best  MLP model")
+        print("[INFO] New global best MLP model")
 
         save_metrics(metrics, BEST_METRICS_PATH / "metrics.json")
         plot_and_save_confusion_matrix(

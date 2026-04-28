@@ -32,3 +32,8 @@ LAST_METRICS_PATH = RESULTS_PATH / "last" / "metrics"
 BEST_METRICS_PATH = RESULTS_PATH / "best" / "metrics"
 
 LABEL_ENCODER_PATH = EMBEDDINGS_PATH / "label_encoder.json"
+
+TENSORS_PATH = PROJECT_ROOT / "tensors" / level
+TRAIN_TENS = TENSORS_PATH / "train.pt"
+TEST_TENS = TENSORS_PATH / "test.pt"
+VAL_TENS = TENSORS_PATH / "val.pt"

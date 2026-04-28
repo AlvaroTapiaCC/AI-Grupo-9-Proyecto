@@ -1,26 +1,22 @@
 from torch.utils.data import DataLoader
 
-from ..paths import VAL_ANNOTATIONS, EMBEDDINGS_PATH, LAST_METRICS_PATH
+from ..paths import LAST_METRICS_PATH, LABEL_ENCODER_PATH
 
-from ..data.dataset_loader import RetailDataset
 from ..data.label_encoder import LabelEncoder
-from ..data.transforms import get_val_transforms
 from ..utils.io import save_metrics
 from .metrics import (
     get_predictions,
     compute_all_metrics,
     plot_and_save_confusion_matrix,
 )
+from .training_utils import load_tensors
 
 
-def evaluate_cnn(model, device, batch_size=32):
+def evaluate_cnn(model, val_path, device, batch_size=32):
 
-    val_dataset = RetailDataset(
-        VAL_ANNOTATIONS,
-        split="val",
-        transform=get_val_transforms(),
-        label_encoder_path=EMBEDDINGS_PATH / "label_encoder.json"
-    )
+    print("[INFO] Loading precomputed val tensors...")
+
+    val_dataset = load_tensors(val_path)
 
     val_loader = DataLoader(
         val_dataset,
@@ -28,9 +24,7 @@ def evaluate_cnn(model, device, batch_size=32):
         shuffle=False
     )
 
-    label_encoder = LabelEncoder.load(
-        EMBEDDINGS_PATH / "label_encoder.json"
-    )
+    label_encoder = LabelEncoder.load(LABEL_ENCODER_PATH)
 
     y_true, y_pred = get_predictions(model, val_loader, device)
 

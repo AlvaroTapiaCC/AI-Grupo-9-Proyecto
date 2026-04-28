@@ -19,7 +19,7 @@ def get_predictions(model, loader, device):
 
     with torch.no_grad():
         for x, y in loader:
-            x = x.to(device)
+            x = x.to(device).float()
             y = y.to(device)
 
             logits = model(x)
