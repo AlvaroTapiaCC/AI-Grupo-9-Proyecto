@@ -1,9 +1,10 @@
 import torch
 import torchvision.io as io
-import torchvision.transforms.functional as TF
 
 from PIL import Image
 from torch.utils.data import TensorDataset
+
+from .. import config
 
 
 def run_epoch(loader, model, criterion, optimizer, device):
@@ -95,6 +96,14 @@ def predict_bboxes(
                 
                 crop = image[:, y1:y2, x1:x2]
                 crop = crop.float() / 255.0
+                crop = crop.to(device)
+                crop = torch.nn.functional.interpolate(
+                    crop.unsqueeze(0),
+                    size=config.image_size,
+                    mode="bilinear",
+                    align_corners=False
+                ).squeeze(0)
+                crop = crop.unsqueeze(0)
                 
                 logits = model(crop)
 

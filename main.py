@@ -6,7 +6,9 @@ from src.paths import (
     TRAIN_EMB, VAL_EMB,
     TRAIN_TENS, VAL_TENS,
     LABEL_ENCODER_PATH,
-    BEST_MODEL_PATH
+    BEST_MODEL_PATH,
+    BEST_MLP_HISTORY, BEST_CNN_HISTORY,
+    COMPARISON_PATH
 )
 
 from src.features import clip_encoder
@@ -25,6 +27,8 @@ from src.training.train_cnn import train_cnn
 from src.training.evaluate_cnn import evaluate_cnn
 
 from src.utils.model_io import load_model
+
+from src.results.plots import plot_model_comparison
 
 
 def main():
@@ -142,6 +146,10 @@ def main():
     print("\n[INFO] Val metrics:")
     for k, v in val_metrics.items():
         print(f"    {k}: {v}")
+        
+    if config.compare and (BEST_MLP_HISTORY is not None and BEST_CNN_HISTORY is not None):
+        print("[INFO] comparing best MLP with best CNN")
+        plot_model_comparison(BEST_MLP_HISTORY, BEST_CNN_HISTORY, COMPARISON_PATH)
     
     end = time.time()
     total_time = end - start
