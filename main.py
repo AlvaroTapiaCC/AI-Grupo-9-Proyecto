@@ -1,12 +1,12 @@
 import time
-import torch
 
 from src import config
 
 from src.paths import (
-    TRAIN_EMB, TEST_EMB, VAL_EMB,
-    TRAIN_TENS, TEST_TENS, VAL_TENS,
+    TRAIN_EMB, VAL_EMB,
+    TRAIN_TENS, VAL_TENS,
     LABEL_ENCODER_PATH,
+    BEST_MODEL_PATH
 )
 
 from src.features import clip_encoder
@@ -23,6 +23,8 @@ from src.training.evaluate_mlp import evaluate_mlp
 
 from src.training.train_cnn import train_cnn
 from src.training.evaluate_cnn import evaluate_cnn
+
+from src.utils.model_io import load_model
 
 
 def main():
@@ -44,7 +46,16 @@ def main():
             print("[INFO] Embeddings already built")
 
         if config.train_new:
-            model_obj, test_metrics = train_mlp()
+            model_obj, is_better = train_mlp()
+            
+            print("\n[INFO] Evaluating on val set...")
+            val_metrics = evaluate_mlp(
+                model_obj,
+                is_better,
+                VAL_EMB,
+                device=config.device,
+                batch_size=config.batch_size
+            )
 
         else:
             print("[INFO] Using Pre Trained MLP...")
@@ -56,28 +67,20 @@ def main():
             num_classes = label_encoder.num_classes()
 
             model_obj = MLPClassifier(input_dim, num_classes).to(config.device)
+            model_obj = load_model(
+                model_obj,
+                BEST_MODEL_PATH / "best.pt",
+                config.device
+            )
 
-            test_metrics = None  # se evaluará después
-
-        print("\n[INFO] Evaluating on test set...")
-        test_metrics = evaluate_mlp(
-            model_obj,
-            TEST_EMB,
-            device=config.device,
-            batch_size=config.batch_size
-        )
-
-        print("\n[INFO] Final test metrics:")
-        for k, v in test_metrics.items():
-            print(f"    {k}: {v}")
-
-        print("\n[INFO] Evaluating on val set...")
-        val_metrics = evaluate_mlp(
-            model_obj,
-            VAL_EMB,
-            device=config.device,
-            batch_size=config.batch_size
-        )
+            print("\n[INFO] Evaluating on val set...")
+            val_metrics = evaluate_mlp(
+                model_obj,
+                is_better=False,
+                val_path=VAL_EMB,
+                device=config.device,
+                batch_size=config.batch_size
+            )
 
     # =========================
     # CNN
@@ -92,7 +95,16 @@ def main():
             print("[INFO] Tensors already built")
 
         if config.train_new:
-            model_obj, test_metrics = train_cnn()
+            model_obj, is_better = train_cnn()
+            
+            print("\n[INFO] Evaluating on val set...")
+            val_metrics = evaluate_cnn(
+                model_obj,
+                is_better,
+                VAL_TENS,
+                device=config.device,
+                batch_size=config.batch_size
+            )
 
         else:
             print("[INFO] Using Pre Trained CNN...")
@@ -109,28 +121,20 @@ def main():
                 image_h=H,
                 image_w=W
             ).to(config.device)
+            model_obj = load_model(
+                model_obj,
+                BEST_MODEL_PATH / "best.pt",
+                config.device
+            )
 
-            test_metrics = None  # se evaluará después
-
-        print("\n[INFO] Evaluating on test set...")
-        test_metrics = evaluate_cnn(
-            model_obj,
-            TEST_TENS,
-            device=config.device,
-            batch_size=config.batch_size
-        )
-
-        print("\n[INFO] Final test metrics:")
-        for k, v in test_metrics.items():
-            print(f"    {k}: {v}")
-
-        print("\n[INFO] Evaluating on val set...")
-        val_metrics = evaluate_cnn(
-            model_obj,
-            VAL_TENS,
-            device=config.device,
-            batch_size=config.batch_size
-        )
+            print("\n[INFO] Evaluating on val set...")
+            val_metrics = evaluate_cnn(
+                model_obj,
+                is_better=False,
+                val_path=VAL_TENS,
+                device=config.device,
+                batch_size=config.batch_size
+            )
 
     else:
         raise ValueError(f"Unknown model type: {config.model}")

@@ -21,10 +21,10 @@ from ..paths import (
     BEST_METRICS_PATH,
 )
 
-from .metrics import get_predictions, compute_all_metrics, plot_and_save_confusion_matrix
+from .metrics import get_predictions, compute_all_metrics
 from .diagnostics import analyze_training, compare_with_best
 from .training_utils import run_epoch, load_tensors
-
+from ..results.plots import plot_and_save_training_history
 from ..utils.model_io import save_model
 from ..utils.io import save_history, save_metrics, save_config
 
@@ -125,9 +125,7 @@ def train_cnn():
 
     save_history(history, LAST_MODEL_PATH / "history.json")
     save_metrics(metrics, LAST_METRICS_PATH / "metrics.json")
-    plot_and_save_confusion_matrix(
-        y_true, y_pred, LAST_METRICS_PATH / "confusion_matrix.png"
-    )
+    plot_and_save_training_history(history, LAST_METRICS_PATH)
 
     status = analyze_training(
         {
@@ -157,13 +155,13 @@ def train_cnn():
     if is_better:
         print("[INFO] New global best CNN model")
 
-        save_metrics(metrics, BEST_METRICS_PATH / "metrics.json")
-        plot_and_save_confusion_matrix(
-            y_true, y_pred, BEST_METRICS_PATH / "confusion_matrix.png"
-        )
-
         save_model(model, BEST_MODEL_PATH / "best.pt")
+        
         shutil.copy(LAST_MODEL_PATH / "history.json", BEST_MODEL_PATH / "history.json")
         shutil.copy(LAST_MODEL_PATH / "config.json", BEST_MODEL_PATH / "config.json")
+        
+        shutil.copy(LAST_METRICS_PATH / "metrics.json", BEST_METRICS_PATH / "metrics.json")
+        shutil.copy(LAST_METRICS_PATH / "acc_plot.png", BEST_METRICS_PATH / "acc_plot.png")
+        shutil.copy(LAST_METRICS_PATH / "loss_plot.png", BEST_METRICS_PATH / "loss_plot.png")
 
-    return model, metrics
+    return model, is_better

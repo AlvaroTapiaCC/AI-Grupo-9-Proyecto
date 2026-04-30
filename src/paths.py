@@ -20,6 +20,7 @@ TEST_IMAGES = IMAGES_PATH / "test"
 VAL_IMAGES = IMAGES_PATH / "val"
 
 CATEGORIES_PATH = DATASET_PATH / "annotations" / "categories.json"
+SUPERCATEGORIES_PATH = DATASET_PATH / "annotations" / "supercategories.json"
 
 EMBEDDINGS_PATH = PROJECT_ROOT/ "embeddings" / level
 TRAIN_EMB = EMBEDDINGS_PATH / "train.pt"
@@ -37,3 +38,7 @@ TENSORS_PATH = PROJECT_ROOT / "tensors" / level
 TRAIN_TENS = TENSORS_PATH / "train.pt"
 TEST_TENS = TENSORS_PATH / "test.pt"
 VAL_TENS = TENSORS_PATH / "val.pt"
+
+BEST_MLP_HISTORY = PROJECT_ROOT / "results" / "mlp" / level / "best" / "model" / "history.json"
+BEST_CNN_HISTORY = PROJECT_ROOT / "results" / "cnn" / level / "best" / "model" / "history.json" 
+COMPARISON_PATH = PROJECT_ROOT / "results" / "comparison" / level

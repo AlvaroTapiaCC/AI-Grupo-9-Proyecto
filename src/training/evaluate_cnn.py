@@ -1,18 +1,20 @@
+import shutil
+
 from torch.utils.data import DataLoader
 
-from ..paths import LAST_METRICS_PATH, LABEL_ENCODER_PATH
+from ..paths import LAST_METRICS_PATH, BEST_METRICS_PATH, LABEL_ENCODER_PATH
 
 from ..data.label_encoder import LabelEncoder
+from ..results.plots import plot_and_save_confusion_matrix
 from ..utils.io import save_metrics
 from .metrics import (
     get_predictions,
     compute_all_metrics,
-    plot_and_save_confusion_matrix,
 )
 from .training_utils import load_tensors
 
 
-def evaluate_cnn(model, val_path, device, batch_size=32):
+def evaluate_cnn(model, is_better, val_path, device, batch_size=32):
 
     print("[INFO] Loading precomputed val tensors...")
 
@@ -38,5 +40,7 @@ def evaluate_cnn(model, val_path, device, batch_size=32):
         save_path=LAST_METRICS_PATH / "confusion_matrix.png",
         class_names=list(label_encoder.id2idx.keys())
     )
+    if is_better:
+        shutil.copy(LAST_METRICS_PATH / "confusion_matrix.png", BEST_METRICS_PATH / "confusion_matrix.png")
 
     return metrics

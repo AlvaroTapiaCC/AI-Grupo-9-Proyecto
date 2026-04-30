@@ -2,12 +2,12 @@ from torch import cuda
 
 
 # GENERAL
-level = "easy"                  # easy/medium/hard
 device = "cuda" if cuda.is_available() else "cpu"
+level = "easy"                  # easy/medium/hard
 
 # MODEL
 model = "mlp"                   # "mlp" or "cnn"
-train_new = True                # if True, train new model, else use best.pt
+train_new = False               # if True, train new model, else use best.pt
 
 #ENCODING
 encode = False

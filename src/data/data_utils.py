@@ -4,6 +4,11 @@ def build_category_mapping(cats_json):
         for c in cats_json["categories"]
     }
 
+def build_supercategory_name_mapping(supercategories_json):
+    return {
+        s["id"]: s["name"]
+        for s in supercategories_json["supercategories"]
+    }
 
 def build_image_mapping(images):
     return {

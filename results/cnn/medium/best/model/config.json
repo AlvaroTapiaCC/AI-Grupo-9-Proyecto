@@ -1,0 +1,8 @@
+{
+    "level": "medium",
+    "device": "cuda",
+    "batch_size": 16,
+    "epochs": 5,
+    "lr": 0.001,
+    "model": "cnn"
+}
