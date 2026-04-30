@@ -1,3 +1,4 @@
+import torch
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -110,6 +111,8 @@ def plot_model_comparison(history_mlp_path, history_cnn_path, save_path):
         
 
 def draw_bboxes(image, results, label_encoder, supercat_map, metrics_path):
+    if isinstance(image, torch.Tensor):
+        image = image.permute(1, 2, 0).cpu().numpy()
     fig, ax = plt.subplots(1, figsize=(8, 8))
     ax.imshow(image)
 

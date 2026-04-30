@@ -1,6 +1,10 @@
 import torch
+import torchvision.io as io
+import torchvision.transforms.functional as TF
+
 from PIL import Image
 from torch.utils.data import TensorDataset
+
 
 def run_epoch(loader, model, criterion, optimizer, device):
     total_loss = 0
@@ -50,9 +54,13 @@ def predict_bboxes(
     cat_map,
     preprocess,
     clip_model
-    
 ):
-    image = Image.open(image_path).convert("RGB")
+    
+    if clip_model:
+        image = Image.open(image_path).convert("RGB")
+    else: 
+        image = io.read_image(image_path)
+        _, H, W = image.shape
 
     results = []
 
@@ -74,13 +82,20 @@ def predict_bboxes(
 
             true_label = label_encoder.transform([supercat])[0]
 
-            crop = image.crop((x, y, x + w, y + h))
-            crop = preprocess(crop).unsqueeze(0).to(device)
-
             if clip_model is not None:
+                crop = image.crop((x, y, x + w, y + h))
+                crop = preprocess(crop).unsqueeze(0).to(device)
                 emb = clip_model.encode_image(crop)
                 logits = model(emb)
             else:
+                x1 = max(0, int(x))
+                y1 = max(0, int(y))
+                x2 = min(W, int(x + w))
+                y2 = min(H, int(y + h))
+                
+                crop = image[:, y1:y2, x1:x2]
+                crop = crop.float() / 255.0
+                
                 logits = model(crop)
 
             pred_label = logits.argmax(dim=1).item()

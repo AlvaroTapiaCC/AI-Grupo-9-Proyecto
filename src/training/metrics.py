@@ -8,7 +8,6 @@ from sklearn.metrics import (
 )
 
 
-
 def get_predictions(model, loader, device):
     model.eval()
 
