@@ -56,6 +56,11 @@ class DINOv2Encoder(nn.Module):
         """Returns CLS token: (B, feature_dim)."""
         return self.backbone.forward_features(x)["x_norm_clstoken"]
 
+    def forward_detector(self, x: torch.Tensor):
+        """Returns (cls_token, patch_tokens): (B, D) and (B, N_patches, D)."""
+        feats = self.backbone.forward_features(x)
+        return feats["x_norm_clstoken"], feats["x_norm_patchtokens"]
+
 
 def _preprocess(img_tensor: torch.Tensor, bbox=None) -> torch.Tensor:
     """
@@ -194,15 +199,18 @@ def _process_detector_split(split_name, ann_path, encoder, save_path):
     image_index = _build_image_index(ann_path)
     MAX_DET     = config.max_detections
 
-    all_cls_tokens, all_counts, all_boxes = [], [], []
+    all_cls_tokens, all_patch_tokens, all_counts, all_boxes = [], [], [], []
     batch_imgs, batch_meta = [], []
 
     def _flush():
         batch = torch.stack(batch_imgs).to(config.device)
         with torch.no_grad():
-            cls_tokens = encoder(batch).cpu()
+            cls_tokens, patch_tokens = encoder.forward_detector(batch)
+        cls_tokens   = cls_tokens.cpu()
+        patch_tokens = patch_tokens.cpu()
         for i, (count, boxes_norm) in enumerate(batch_meta):
             all_cls_tokens.append(cls_tokens[i])
+            all_patch_tokens.append(patch_tokens[i])
             all_counts.append(count)
             all_boxes.append(boxes_norm)
 
@@ -239,9 +247,10 @@ def _process_detector_split(split_name, ann_path, encoder, save_path):
 
     torch.save(
         {
-            "cls_tokens": torch.stack(all_cls_tokens),                    # (N, D)
-            "counts":     torch.tensor(all_counts, dtype=torch.long),     # (N,)
-            "boxes":      torch.tensor(all_boxes,  dtype=torch.float32),  # (N, MAX_DET, 4)
+            "cls_tokens":   torch.stack(all_cls_tokens),                    # (N, D)
+            "patch_tokens": torch.stack(all_patch_tokens),                  # (N, N_patches, D)
+            "counts":       torch.tensor(all_counts, dtype=torch.long),     # (N,)
+            "boxes":        torch.tensor(all_boxes,  dtype=torch.float32),  # (N, MAX_DET, 4)
         },
         save_path,
     )

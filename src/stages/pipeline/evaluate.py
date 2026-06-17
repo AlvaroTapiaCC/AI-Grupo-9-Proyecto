@@ -59,6 +59,9 @@ def evaluate_pipeline(
     if n_images is not None:
         image_ids = random.sample(image_ids, min(n_images, len(image_ids)))
 
+    if PIPELINE_RESULTS.exists():
+        for f in PIPELINE_RESULTS.glob("*.png"):
+            f.unlink()
     PIPELINE_RESULTS.mkdir(parents=True, exist_ok=True)
 
     all_preds, all_gt = [], []
@@ -80,7 +83,8 @@ def evaluate_pipeline(
         all_gt.append({"boxes": meta["boxes"], "classes": meta["classes"]})
 
         save_path = PIPELINE_RESULTS / f"result_{i:02d}_{image_path.stem}.png"
-        draw_pipeline_result(image_path, detections, save_path)
+        draw_pipeline_result(image_path, detections, save_path,
+                             gt={"boxes": meta["boxes"], "classes": meta["classes"]})
         print(f"  [{i+1}/{len(image_ids)}] {meta['file_name']} → {len(detections)} detections")
 
     metrics = compute_pipeline_metrics(all_preds, all_gt)

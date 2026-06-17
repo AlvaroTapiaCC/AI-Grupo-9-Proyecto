@@ -1,5 +1,6 @@
 import shutil
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 
 from ... import config
@@ -25,6 +26,7 @@ def train_detector():
 
     model     = RetailDetector(feature_dim=train_dataset.feature_dim).to(config.device)
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.epochs, eta_min=1e-5)
 
     history = {
         "train_count_loss": [], "test_count_loss": [],
@@ -57,6 +59,8 @@ def train_detector():
         if te_mae < best_mae:
             best_mae   = te_mae
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
+
+        scheduler.step()
 
         marker = " *" if te_mae == best_mae else ""
         epoch_str = f"{epoch+1}/{col}"

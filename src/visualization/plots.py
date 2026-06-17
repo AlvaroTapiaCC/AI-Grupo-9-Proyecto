@@ -106,34 +106,60 @@ def draw_detector_comparison(image_path, gt_boxes, pred_boxes, gt_count, pred_co
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
-def draw_pipeline_result(image_path, detections, save_path):
-    """Image with predicted bboxes color-coded by class and confidence."""
+def draw_pipeline_result(image_path, detections, save_path, gt=None):
+    """
+    Two-panel figure: GT (left) | Predicted (right).
+    Both panels color-code boxes by class name.
+    gt: {boxes: [[x1,y1,x2,y2] norm], classes: [str]} or None (single panel).
+    """
     img = np.array(Image.open(str(image_path)).convert("RGB"))
     H, W = img.shape[:2]
 
-    fig, ax = plt.subplots(1, figsize=(10, 8))
-    ax.imshow(img)
-
+    # Build a shared class → color map across GT and predictions
+    all_classes = []
+    if gt:
+        all_classes += gt["classes"]
+    all_classes += [d["class_name"] for d in detections]
     class_color_map, ci = {}, 0
-    for det in detections:
-        name = det["class_name"]
+    for name in all_classes:
         if name not in class_color_map:
             class_color_map[name] = _CLASS_COLORS[ci % len(_CLASS_COLORS)]
             ci += 1
-        color = class_color_map[name]
-        x1, y1, x2, y2 = det["bbox"]
-        ax.add_patch(patches.Rectangle(
-            (x1 * W, y1 * H), (x2 - x1) * W, (y2 - y1) * H,
-            linewidth=2, edgecolor=color, facecolor="none",
-        ))
-        ax.text(
-            x1 * W, max(0, y1 * H - 4),
-            f"{name} {det['confidence']:.0%}",
-            color="white", fontsize=7,
-            bbox=dict(facecolor=color, alpha=0.8, pad=1),
-        )
 
-    ax.axis("off")
+    n_panels = 2 if gt else 1
+    fig, axes = plt.subplots(1, n_panels, figsize=(10 * n_panels, 8))
+    if n_panels == 1:
+        axes = [axes]
+
+    def _draw_boxes(ax, boxes, classes, title, show_conf=False, confs=None):
+        ax.imshow(img)
+        ax.set_title(title, fontsize=11)
+        ax.axis("off")
+        for j, (box, cls) in enumerate(zip(boxes, classes)):
+            x1, y1, x2, y2 = box
+            color = class_color_map.get(cls, "#FFFFFF")
+            ax.add_patch(patches.Rectangle(
+                (x1 * W, y1 * H), (x2 - x1) * W, (y2 - y1) * H,
+                linewidth=2, edgecolor=color, facecolor="none",
+            ))
+            label = f"{cls} {confs[j]:.0%}" if (show_conf and confs) else cls
+            ax.text(
+                x1 * W, max(0, y1 * H - 4), label,
+                color="white", fontsize=7,
+                bbox=dict(facecolor=color, alpha=0.8, pad=1),
+            )
+
+    if gt:
+        _draw_boxes(axes[0], gt["boxes"], gt["classes"],
+                    f"GT ({len(gt['boxes'])} objects)")
+
+    pred_boxes   = [d["bbox"]       for d in detections]
+    pred_classes = [d["class_name"] for d in detections]
+    pred_confs   = [d["confidence"] for d in detections]
+    _draw_boxes(axes[-1], pred_boxes, pred_classes,
+                f"Predicted ({len(detections)} objects)",
+                show_conf=True, confs=pred_confs)
+
     plt.tight_layout()
     plt.savefig(save_path, bbox_inches="tight", dpi=150)
     plt.close()

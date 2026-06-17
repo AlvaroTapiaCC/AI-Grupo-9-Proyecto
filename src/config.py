@@ -5,13 +5,13 @@ device = "cuda" if cuda.is_available() else "cpu"
 level  = "easy"          # "easy" | "medium" | "hard"
 
 # ── Run mode ──────────────────────────────────────────────────────────────────
-model     = "classifier"   # "classifier" | "detector" | "pipeline"
-encode    = False        # precompute features before training
-train_new = False        # True → train from scratch | False → load best checkpoint
+model     = "pipeline"   # "classifier" | "detector" | "pipeline"
+encode    = True        # precompute features before training
+train_new = True         # True → train from scratch | False → load best checkpoint
 
 # ── Training ──────────────────────────────────────────────────────────────────
 batch_size = 16
-epochs     = 20
+epochs     = 30
 lr         = 1e-3
 
 # ── DINOv2 backbone ───────────────────────────────────────────────────────────

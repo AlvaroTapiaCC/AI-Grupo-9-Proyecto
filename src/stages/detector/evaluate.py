@@ -33,8 +33,8 @@ def evaluate_detector(model, is_better, val_feat=None):
     all_count_targets, all_box_targets  = [], []
 
     with torch.no_grad():
-        for cls_tokens, count_targets, box_targets in val_loader:
-            count_logits, box_preds = model(cls_tokens.to(config.device))
+        for cls_tokens, patch_tokens, count_targets, box_targets in val_loader:
+            count_logits, box_preds = model(cls_tokens.to(config.device), patch_tokens.to(config.device))
             all_count_logits.append(count_logits.cpu())
             all_box_preds.append(box_preds.cpu())
             all_count_targets.append(count_targets)
@@ -108,8 +108,8 @@ def visualize_detector_predictions(model, dino_encoder, save_dir, n_images=4):
         img_input  = (img_input.float() / 255.0 - _MEAN) / _STD
 
         with torch.no_grad():
-            cls_token                = dino_encoder(img_input.unsqueeze(0).to(config.device))
-            count_logits, box_preds  = model(cls_token)
+            cls_token, patch_tokens = dino_encoder.forward_detector(img_input.unsqueeze(0).to(config.device))
+            count_logits, box_preds = model(cls_token, patch_tokens)
 
         pred_count = count_logits.argmax(dim=1).item()
         pred_boxes = box_preds[0, :pred_count].cpu().tolist()

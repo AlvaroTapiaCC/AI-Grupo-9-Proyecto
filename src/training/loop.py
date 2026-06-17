@@ -53,12 +53,13 @@ def run_epoch_detector(loader, model, loss_fn, optimizer, device):
     total_count_loss, total_box_loss, total_mae, n = 0.0, 0.0, 0.0, 0
 
     with torch.set_grad_enabled(is_train):
-        for cls_tokens, count_targets, box_targets in loader:
+        for cls_tokens, patch_tokens, count_targets, box_targets in loader:
             cls_tokens    = cls_tokens.to(device)
+            patch_tokens  = patch_tokens.to(device)
             count_targets = count_targets.to(device)
             box_targets   = box_targets.to(device)
 
-            count_logits, box_preds = model(cls_tokens)
+            count_logits, box_preds = model(cls_tokens, patch_tokens)
             count_loss, box_loss    = loss_fn(count_logits, box_preds, count_targets, box_targets)
             loss = count_loss + box_loss
 

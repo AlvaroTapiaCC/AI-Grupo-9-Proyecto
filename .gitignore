@@ -9,11 +9,6 @@ __pycache__/
 
 # Data (heavy)
 dataset/
-embeddings/
-tensors/
-dinov2_embeddings/
-dinov2_features/
-locator_features/
 checkpoints/
 precomputed/
 
@@ -22,7 +17,3 @@ Labs/
 docs/
 Midterm/
 results/
-
-# New Structure
-old_src/
-

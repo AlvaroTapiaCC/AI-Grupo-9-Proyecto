@@ -57,8 +57,9 @@ def run_pipeline(
     dino_encoder.eval()
     detector.eval()
     with torch.no_grad():
-        cls_token    = dino_encoder(_dino_preprocess(image_tensor).to(device))  # (1, D)
-        count_logits, box_preds = detector(cls_token)                            # (1, K_cls), (1, MAX_DET, 4)
+        img_input = _dino_preprocess(image_tensor).to(device)
+        cls_token, patch_tokens       = dino_encoder.forward_detector(img_input)  # (1, D), (1, N, D)
+        count_logits, box_preds       = detector(cls_token, patch_tokens)          # (1, K_cls), (1, MAX_DET, 4)
 
     pred_count = count_logits.argmax(dim=1).item()
     pred_boxes = box_preds[0, :pred_count].cpu()  # (pred_count, 4)
