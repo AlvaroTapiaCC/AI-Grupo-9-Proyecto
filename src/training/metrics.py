@@ -58,3 +58,60 @@ def compute_detector_metrics(count_logits, box_preds, count_targets, box_targets
     mean_iou = (inter / union).mean().item()
 
     return {"count_mae": count_mae, "mean_iou": mean_iou}
+
+
+# ── Pipeline metrics ──────────────────────────────────────────────────────────
+
+def _box_iou(a, b) -> float:
+    ix1, iy1 = max(a[0], b[0]), max(a[1], b[1])
+    ix2, iy2 = min(a[2], b[2]), min(a[3], b[3])
+    inter  = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    a_area = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
+    b_area = max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
+    return inter / (a_area + b_area - inter + 1e-6)
+
+
+def compute_pipeline_metrics(pred_list, gt_list, iou_threshold=0.5):
+    """
+    pred_list: list over images of [{bbox:[x1,y1,x2,y2], class_name, confidence}]
+    gt_list:   list over images of {boxes:[[x1,y1,x2,y2]], classes:[str]}
+
+    Greedy matching: each GT box matched to its best-IoU prediction (no reuse).
+
+    Returns loc_recall, clf_accuracy, end_to_end, combined_score.
+    """
+    total_gt = total_detected = total_correct = 0
+
+    for preds, gt in zip(pred_list, gt_list):
+        gt_boxes, gt_classes = gt["boxes"], gt["classes"]
+        total_gt += len(gt_boxes)
+        matched = [False] * len(preds)
+
+        for gt_box, gt_cls in zip(gt_boxes, gt_classes):
+            best_iou, best_idx = 0.0, -1
+            for j, det in enumerate(preds):
+                if matched[j]:
+                    continue
+                iou = _box_iou(gt_box, det["bbox"])
+                if iou > best_iou:
+                    best_iou, best_idx = iou, j
+
+            if best_iou >= iou_threshold and best_idx >= 0:
+                total_detected += 1
+                matched[best_idx] = True
+                if preds[best_idx]["class_name"] == gt_cls:
+                    total_correct += 1
+
+    loc_recall   = total_detected / max(total_gt, 1)
+    clf_accuracy = total_correct  / max(total_detected, 1)
+    end_to_end   = total_correct  / max(total_gt, 1)
+
+    return {
+        "loc_recall":     round(loc_recall,   4),
+        "clf_accuracy":   round(clf_accuracy,  4),
+        "end_to_end":     round(end_to_end,    4),
+        "combined_score": round((loc_recall + clf_accuracy + end_to_end) / 3, 4),
+        "total_gt":       total_gt,
+        "total_detected": total_detected,
+        "total_correct":  total_correct,
+    }

@@ -74,6 +74,36 @@ def plot_detector_history(history, save_path):
     plt.close()
 
 
+# ── Detector ─────────────────────────────────────────────────────────────────
+
+def draw_detector_comparison(image_path, gt_boxes, pred_boxes, gt_count, pred_count, save_path):
+    """
+    2-panel figure: GT boxes (green) | Predicted boxes (red).
+    All boxes in normalized [x1, y1, x2, y2].
+    """
+    img = np.array(Image.open(str(image_path)).convert("RGB"))
+    H, W = img.shape[:2]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    for ax, boxes, color, title in [
+        (axes[0], gt_boxes,   "#43A047", f"GT ({gt_count} objects)"),
+        (axes[1], pred_boxes, "#E53935", f"Predicted ({pred_count} objects)"),
+    ]:
+        ax.imshow(img)
+        for box in boxes:
+            x1, y1, x2, y2 = box
+            ax.add_patch(patches.Rectangle(
+                (x1 * W, y1 * H), (x2 - x1) * W, (y2 - y1) * H,
+                linewidth=2, edgecolor=color, facecolor="none",
+            ))
+        ax.set_title(title, fontsize=10)
+        ax.axis("off")
+
+    plt.tight_layout()
+    plt.savefig(save_path, bbox_inches="tight", dpi=150)
+    plt.close()
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 def draw_pipeline_result(image_path, detections, save_path):
