@@ -5,7 +5,7 @@ device = "cuda" if cuda.is_available() else "cpu"
 level  = "easy"          # "easy" | "medium" | "hard"
 
 # ── Run mode ──────────────────────────────────────────────────────────────────
-model     = "pipeline"   # "classifier" | "detector" | "pipeline"
+model     = "classifier"   # "classifier" | "detector" | "pipeline"
 encode    = False        # precompute features before training
 train_new = False        # True → train from scratch | False → load best checkpoint
 

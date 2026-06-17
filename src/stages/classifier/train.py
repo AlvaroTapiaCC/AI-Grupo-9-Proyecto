@@ -8,6 +8,7 @@ from ...paths import (
     CLIP_TRAIN_EMB, CLIP_TEST_EMB, CLIP_LABEL_ENCODER,
     CLS_LAST_CHECKPOINT, CLS_BEST_CHECKPOINT,
     CLS_LAST_RESULTS, CLS_BEST_RESULTS,
+    CLS_LAST_LOGS, CLS_BEST_LOGS,
 )
 from ...models.mlp import MLPClassifier
 from ...data.label_encoder import LabelEncoder
@@ -37,10 +38,15 @@ def train_classifier(train_emb=None, test_emb=None, label_encoder_path=None):
     best_test_acc, best_state, best_epoch = 0.0, None, 0
 
     for d in (CLS_LAST_CHECKPOINT.parent, CLS_BEST_CHECKPOINT.parent,
-              CLS_LAST_RESULTS, CLS_BEST_RESULTS):
+              CLS_LAST_RESULTS, CLS_BEST_RESULTS,
+              CLS_LAST_LOGS, CLS_BEST_LOGS):
         d.mkdir(parents=True, exist_ok=True)
 
-    print("[INFO] Training MLPClassifier...")
+    col = config.epochs
+    print(f"\n[INFO] Training MLPClassifier...")
+    print(f"{'Epoch':>{len(str(col))+6}} | {'Train Loss':>10} | {'Train Acc':>9} | {'Val Loss':>8} | {'Val Acc':>7}")
+    print(f"{'-'*(len(str(col))+6)}-+-{'-'*10}-+-{'-'*9}-+-{'-'*8}-+-{'-'*7}")
+
     for epoch in range(config.epochs):
         train_loss, train_acc = run_epoch_classifier(train_loader, model, criterion, optimizer, config.device)
         test_loss,  test_acc  = run_epoch_classifier(test_loader,  model, criterion, None,      config.device)
@@ -55,11 +61,9 @@ def train_classifier(train_emb=None, test_emb=None, label_encoder_path=None):
             best_state    = {k: v.clone() for k, v in model.state_dict().items()}
             best_epoch    = epoch
 
-        print(
-            f"Epoch {epoch+1:>2}/{config.epochs} | "
-            f"train loss {train_loss:.4f} acc {train_acc:.4f} | "
-            f"test loss {test_loss:.4f} acc {test_acc:.4f}"
-        )
+        marker = " *" if test_acc == best_test_acc else ""
+        epoch_str = f"{epoch+1}/{col}"
+        print(f"{epoch_str:>{len(str(col))+6}} | {train_loss:>10.4f} | {train_acc:>9.4f} | {test_loss:>8.4f} | {test_acc:>7.4f}{marker}")
 
     model.load_state_dict(best_state)
     save_model(model, CLS_LAST_CHECKPOINT)
@@ -67,10 +71,10 @@ def train_classifier(train_emb=None, test_emb=None, label_encoder_path=None):
     y_true, y_pred = get_classifier_predictions(model, test_loader, config.device)
     metrics        = compute_classifier_metrics(y_true, y_pred)
 
-    save_json(CLS_LAST_RESULTS / "history.json", history)
-    save_json(CLS_LAST_RESULTS / "metrics.json", metrics)
+    save_json(CLS_LAST_LOGS / "history.json", history)
+    save_json(CLS_LAST_LOGS / "metrics.json", metrics)
 
-    best_metrics_file = CLS_BEST_RESULTS / "metrics.json"
+    best_metrics_file = CLS_BEST_LOGS / "metrics.json"
     is_better = True
     if best_metrics_file.exists():
         is_better = metrics["accuracy"] > load_json(best_metrics_file)["accuracy"]
@@ -78,7 +82,8 @@ def train_classifier(train_emb=None, test_emb=None, label_encoder_path=None):
     if is_better:
         print("[INFO] New best classifier — saving...")
         save_model(model, CLS_BEST_CHECKPOINT)
-        shutil.copy(CLS_LAST_RESULTS / "history.json", CLS_BEST_RESULTS / "history.json")
-        shutil.copy(CLS_LAST_RESULTS / "metrics.json", CLS_BEST_RESULTS / "metrics.json")
+        if CLS_BEST_LOGS.exists():
+            shutil.rmtree(CLS_BEST_LOGS)
+        shutil.copytree(CLS_LAST_LOGS, CLS_BEST_LOGS)
 
     return model, is_better

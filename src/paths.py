@@ -52,8 +52,12 @@ RESULTS_PATH = PROJECT_ROOT / "results"
 
 CLS_LAST_RESULTS = RESULTS_PATH / "classifier" / level / "last"
 CLS_BEST_RESULTS = RESULTS_PATH / "classifier" / level / "best"
+CLS_LAST_LOGS    = CLS_LAST_RESULTS / "logs"
+CLS_BEST_LOGS    = CLS_BEST_RESULTS / "logs"
 
 DET_LAST_RESULTS = RESULTS_PATH / "detector" / level / "last"
 DET_BEST_RESULTS = RESULTS_PATH / "detector" / level / "best"
+DET_LAST_LOGS    = DET_LAST_RESULTS / "logs"
+DET_BEST_LOGS    = DET_BEST_RESULTS / "logs"
 
 PIPELINE_RESULTS = RESULTS_PATH / "pipeline" / level

@@ -10,6 +10,7 @@ from ...paths import (
     DETECTOR_VAL_FEAT,
     VAL_ANNOTATIONS, VAL_IMAGES,
     DET_LAST_RESULTS, DET_BEST_RESULTS,
+    DET_LAST_LOGS, DET_BEST_LOGS,
 )
 from ...data.data_utils import build_image_mapping
 from ...data.datasets.detection_dataset import DetectionFeatureDataset
@@ -46,16 +47,24 @@ def evaluate_detector(model, is_better, val_feat=None):
         torch.cat(all_box_targets),
     )
 
-    DET_LAST_RESULTS.mkdir(parents=True, exist_ok=True)
-    save_json(DET_LAST_RESULTS / "val_metrics.json", metrics)
+    results_dir = DET_LAST_RESULTS if config.train_new else DET_BEST_RESULTS
+    logs_dir    = DET_LAST_LOGS    if config.train_new else DET_BEST_LOGS
+
+    results_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    for f in results_dir.glob("*.png"):
+        f.unlink()
+    save_json(logs_dir / "val_metrics.json", metrics)
 
     print("[INFO] Detector val metrics:")
     for k, v in metrics.items():
         print(f"    {k}: {v:.4f}")
 
-    if is_better:
-        DET_BEST_RESULTS.mkdir(parents=True, exist_ok=True)
-        shutil.copy(DET_LAST_RESULTS / "val_metrics.json", DET_BEST_RESULTS / "val_metrics.json")
+    if config.train_new and is_better:
+        if DET_BEST_RESULTS.exists():
+            shutil.rmtree(DET_BEST_RESULTS)
+        shutil.copytree(DET_LAST_RESULTS, DET_BEST_RESULTS)
+        print("[INFO] Best detector results updated.")
 
     return metrics
 
