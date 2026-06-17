@@ -14,6 +14,8 @@ tensors/
 dinov2_embeddings/
 dinov2_features/
 locator_features/
+checkpoints/
+precomputed/
 
 # Extra
 Labs/

@@ -5,8 +5,8 @@ from torch.utils.data import DataLoader
 from ... import config
 from ...paths import (
     DETECTOR_TRAIN_FEAT, DETECTOR_TEST_FEAT,
-    DET_LAST_MODEL, DET_BEST_MODEL,
-    DET_LAST_METRICS, DET_BEST_METRICS,
+    DET_LAST_CHECKPOINT, DET_BEST_CHECKPOINT,
+    DET_LAST_RESULTS, DET_BEST_RESULTS,
 )
 from ...models.detector import RetailDetector
 from ...data.datasets.detection_dataset import DetectionFeatureDataset
@@ -30,9 +30,10 @@ def train_detector():
         "train_box_loss":   [], "test_box_loss":   [],
         "train_count_mae":  [], "test_count_mae":  [],
     }
-    best_mae, best_state, best_epoch = float("inf"), None, 0
+    best_mae, best_state = float("inf"), None
 
-    for d in (DET_LAST_MODEL, DET_BEST_MODEL, DET_LAST_METRICS, DET_BEST_METRICS):
+    for d in (DET_LAST_CHECKPOINT.parent, DET_BEST_CHECKPOINT.parent,
+              DET_LAST_RESULTS, DET_BEST_RESULTS):
         d.mkdir(parents=True, exist_ok=True)
 
     print("[INFO] Training RetailDetector...")
@@ -48,9 +49,8 @@ def train_detector():
         history["test_count_mae"].append(te_mae)
 
         if te_mae < best_mae:
-            best_mae   = te_mae
+            best_mae  = te_mae
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
-            best_epoch = epoch
 
         print(
             f"Epoch {epoch+1:>2}/{config.epochs} | "
@@ -60,18 +60,17 @@ def train_detector():
         )
 
     model.load_state_dict(best_state)
-    save_model(model, DET_LAST_MODEL / "model.pt")
-    save_json(DET_LAST_MODEL / "history.json", history)
+    save_model(model, DET_LAST_CHECKPOINT)
+    save_json(DET_LAST_RESULTS / "history.json", history)
 
-    best_metrics_file = DET_BEST_METRICS / "metrics.json"
+    best_metrics_file = DET_BEST_RESULTS / "metrics.json"
     is_better = True
     if best_metrics_file.exists():
-        best_metrics = load_json(best_metrics_file)
-        is_better    = best_mae < best_metrics.get("count_mae", float("inf"))
+        is_better = best_mae < load_json(best_metrics_file).get("count_mae", float("inf"))
 
     if is_better:
         print("[INFO] New best detector — saving...")
-        save_model(model, DET_BEST_MODEL / "model.pt")
-        shutil.copy(DET_LAST_MODEL / "history.json", DET_BEST_MODEL / "history.json")
+        save_model(model, DET_BEST_CHECKPOINT)
+        shutil.copy(DET_LAST_RESULTS / "history.json", DET_BEST_RESULTS / "history.json")
 
     return model, is_better
