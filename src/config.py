@@ -1,22 +1,24 @@
 from torch import cuda
 
-
-# GENERAL
+# ── Environment ───────────────────────────────────────────────────────────────
 device = "cuda" if cuda.is_available() else "cpu"
-level = "easy"                  # easy/medium/hard
+level  = "easy"          # "easy" | "medium" | "hard"
 
-# MODEL
-model = "mlp"                   # "mlp" or "cnn"
-train_new = False               # if True, train new model, else use best.pt
+# ── Run mode ──────────────────────────────────────────────────────────────────
+model     = "pipeline"   # "classifier" | "detector" | "pipeline"
+encode    = False        # precompute features before training
+train_new = False        # True → train from scratch | False → load best checkpoint
 
-#ENCODING
-encode = False
+# ── Training ──────────────────────────────────────────────────────────────────
+batch_size = 16
+epochs     = 20
+lr         = 1e-3
 
-#TRAINING
-batch_size = 32
-epochs = 20
-lr = 1e-3
-image_size = (64, 64)           # Image size for CNN
+# ── DINOv2 backbone ───────────────────────────────────────────────────────────
+dinov2_model    = "dinov2_vitb14"   # vits14 | vitb14 | vitl14 | vitg14
+freeze_backbone = True
+image_size      = (224, 224)        # input resolution (multiple of patch size 14)
 
-#RESULTS
-compare=True
+# ── Detector ──────────────────────────────────────────────────────────────────
+max_detections    = 10   # max products per image (verified from dataset)
+num_count_classes = 11   # CrossEntropy over 0..10 products

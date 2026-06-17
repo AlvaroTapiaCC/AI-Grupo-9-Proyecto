@@ -1,15 +1,26 @@
-dataset/
-
-embeddings/
-
-tensors/
-
+# Python stuff
 .cache/
 __pycache__/
 *.pyc
 
+# Evnironment and config
 .venv/
-
 .vscode/
 
-act_lab8/
+# Data (heavy)
+dataset/
+embeddings/
+tensors/
+dinov2_embeddings/
+dinov2_features/
+locator_features/
+
+# Extra
+Labs/
+docs/
+Midterm/
+results/
+
+# New Structure
+old_src/
+
