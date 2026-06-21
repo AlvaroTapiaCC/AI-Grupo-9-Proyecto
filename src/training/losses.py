@@ -3,9 +3,11 @@ import torch.nn.functional as F
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from ..utils.box_ops import cxcywh_to_xyxy
+
 
 def _giou_flat(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    """GIoU for (N, 4) paired boxes. Returns (N,) GIoU values."""
+    """GIoU for (N, 4) paired boxes in xyxy format. Returns (N,) GIoU values."""
     px1, py1, px2, py2 = pred[:, 0],   pred[:, 1],   pred[:, 2],   pred[:, 3]
     tx1, ty1, tx2, ty2 = target[:, 0], target[:, 1], target[:, 2], target[:, 3]
 
@@ -26,37 +28,31 @@ def _giou_flat(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 def _batch_cost_matrix(box_preds: torch.Tensor, box_targets: torch.Tensor) -> np.ndarray:
     """
     Compute (B, MAX_DET, MAX_DET) cost matrix fully on GPU, return as numpy.
-    box_preds:   (B, M, 4)
-    box_targets: (B, M, 4)  — padded, only first n slots are valid per image
+    Boxes in cxcywh format — converted to xyxy internally for GIoU.
     """
     B, M, _ = box_preds.shape
 
-    pred_exp = box_preds.unsqueeze(2).expand(B, M, M, 4)    # (B, M, M, 4)
-    gt_exp   = box_targets.unsqueeze(1).expand(B, M, M, 4)  # (B, M, M, 4)
+    pred_exp = box_preds.unsqueeze(2).expand(B, M, M, 4)
+    gt_exp   = box_targets.unsqueeze(1).expand(B, M, M, 4)
 
-    l1_cost = (pred_exp - gt_exp).abs().sum(-1)              # (B, M, M)
+    l1_cost = (pred_exp - gt_exp).abs().sum(-1)  # (B, M, M)
 
-    p_flat    = pred_exp.reshape(B * M * M, 4)
-    g_flat    = gt_exp.reshape(B * M * M, 4)
+    p_flat    = cxcywh_to_xyxy(pred_exp.reshape(B * M * M, 4))
+    g_flat    = cxcywh_to_xyxy(gt_exp.reshape(B * M * M, 4))
     giou_cost = (1.0 - _giou_flat(p_flat, g_flat)).reshape(B, M, M)
 
-    return (l1_cost + giou_cost).detach().cpu().numpy()      # (B, M, M)
+    return (l1_cost + giou_cost).detach().cpu().numpy()
 
 
 def detector_loss(count_logits, box_preds, count_targets, box_targets):
     """
-    count_logits:  (B, num_count_classes)
-    box_preds:     (B, MAX_DET, 4)
-    count_targets: (B,)
-    box_targets:   (B, MAX_DET, 4)  padded with zeros
-
-    Hungarian matching: cost matrix computed in one GPU pass,
-    scipy assignment called once per image (tiny M×n matrices).
+    Boxes in cxcywh format.
+    Hungarian matching per image — cost matrix in one GPU pass.
+    Returns: (count_loss, box_loss)
     """
     count_loss = F.cross_entropy(count_logits, count_targets)
 
-    # Full (B, M, M) cost matrix in one vectorized GPU pass
-    cost_np = _batch_cost_matrix(box_preds, box_targets)  # numpy, no grad
+    cost_np = _batch_cost_matrix(box_preds, box_targets)
 
     box_losses = []
     for b in range(box_preds.shape[0]):
@@ -66,12 +62,14 @@ def detector_loss(count_logits, box_preds, count_targets, box_targets):
 
         row_idx, col_idx = linear_sum_assignment(cost_np[b, :, :n])
 
-        matched_pred = box_preds[b][row_idx]        # (n, 4)  — keeps grad
-        matched_gt   = box_targets[b][col_idx]      # (n, 4)
+        matched_pred     = box_preds[b][row_idx]
+        matched_gt       = box_targets[b][col_idx]
+        matched_pred_xy  = cxcywh_to_xyxy(matched_pred)
+        matched_gt_xy    = cxcywh_to_xyxy(matched_gt)
 
         box_losses.append(
             F.smooth_l1_loss(matched_pred, matched_gt) +
-            (1.0 - _giou_flat(matched_pred, matched_gt)).mean()
+            (1.0 - _giou_flat(matched_pred_xy, matched_gt_xy)).mean()
         )
 
     if not box_losses:

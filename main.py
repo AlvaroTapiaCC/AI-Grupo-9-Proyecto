@@ -91,17 +91,27 @@ def main():
             print("[INFO] Building detector features...")
             build_detector_features()
 
-        dino_encoder = _load_dino_encoder()
-
         if config.train_new:
-            model, is_better = train_detector()
+            model, dino_encoder, is_better = train_detector()
+            if dino_encoder is None:
+                dino_encoder = _load_dino_encoder()
         else:
             print("[INFO] Loading best detector checkpoint...")
-            model    = _load_detector(DET_BEST_CHECKPOINT)
+            model = _load_detector(DET_BEST_CHECKPOINT)
+            if config.finetune_dino:
+                from src.paths import DINO_DET_BEST_CHECKPOINT
+                dino_encoder = DINOv2Encoder(
+                    model_name=config.dinov2_model, freeze=True,
+                    unfreeze_blocks=config.unfreeze_blocks,
+                ).to(config.device)
+                load_model(dino_encoder, DINO_DET_BEST_CHECKPOINT, config.device)
+                dino_encoder.eval()
+            else:
+                dino_encoder = _load_dino_encoder()
             is_better = False
 
         print("\n[INFO] Evaluating detector on val set...")
-        metrics = evaluate_detector(model, is_better)
+        metrics = evaluate_detector(model, is_better, dino_encoder=dino_encoder)
 
         from src.paths import DET_BEST_RESULTS
         vis_dir = DET_LAST_RESULTS if config.train_new else DET_BEST_RESULTS

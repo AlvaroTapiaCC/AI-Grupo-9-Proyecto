@@ -42,6 +42,56 @@ def run_epoch_classifier(loader, model, criterion, optimizer, device):
     return total_loss / n, correct / n
 
 
+def run_epoch_detector_finetune(loader, encoder, model, loss_fn, optimizer, device, scaler=None):
+    """Single train or eval epoch with DINOv2 fine-tuning + optional AMP.
+
+    Returns: (avg_count_loss, avg_box_loss, avg_count_mae)
+    """
+    is_train = optimizer is not None
+    encoder.train() if is_train else encoder.eval()
+    model.train()   if is_train else model.eval()
+
+    total_count_loss, total_box_loss, total_mae, n = 0.0, 0.0, 0.0, 0
+    use_amp = scaler is not None and device == "cuda"
+
+    with torch.set_grad_enabled(is_train):
+        for images, count_targets, box_targets in loader:
+            images        = images.to(device)
+            count_targets = count_targets.to(device)
+            box_targets   = box_targets.to(device)
+
+            with torch.autocast(device_type="cuda", enabled=use_amp):
+                cls_tokens, patch_tokens = encoder.forward_detector(images)
+                count_logits, box_preds  = model(cls_tokens, patch_tokens)
+                count_loss, box_loss     = loss_fn(count_logits, box_preds, count_targets, box_targets)
+                loss = count_loss + box_loss
+
+            if is_train:
+                optimizer.zero_grad()
+                if use_amp:
+                    scaler.scale(loss).backward()
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(
+                        [p for g in optimizer.param_groups for p in g["params"]], max_norm=1.0
+                    )
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(
+                        [p for g in optimizer.param_groups for p in g["params"]], max_norm=1.0
+                    )
+                    optimizer.step()
+
+            B = images.size(0)
+            total_count_loss += count_loss.item() * B
+            total_box_loss   += box_loss.item() * B
+            total_mae        += (count_logits.argmax(dim=1) - count_targets).abs().float().sum().item()
+            n                += B
+
+    return total_count_loss / n, total_box_loss / n, total_mae / n
+
+
 def run_epoch_detector(loader, model, loss_fn, optimizer, device):
     """Single train or eval epoch for the count+box detector.
 

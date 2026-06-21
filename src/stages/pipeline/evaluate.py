@@ -9,7 +9,7 @@ from ...data.data_utils import build_image_mapping, build_category_mapping, buil
 from ...utils.io import load_json, save_json
 from ...inference.pipeline import run_pipeline
 from ...training.metrics import compute_pipeline_metrics
-from ...visualization.plots import draw_pipeline_result
+from ...visualization.plots import draw_pipeline_result, plot_pipeline_metrics, plot_pipeline_class_accuracy
 
 
 def _build_gt(ann_data, cat_map, supercat_map):
@@ -65,6 +65,7 @@ def evaluate_pipeline(
     PIPELINE_RESULTS.mkdir(parents=True, exist_ok=True)
 
     all_preds, all_gt = [], []
+    class_results = {}  # {class_name: {"total": int, "correct": int}}
 
     print(f"[INFO] Evaluating pipeline on {len(image_ids)} val images...")
     for i, iid in enumerate(image_ids):
@@ -82,6 +83,11 @@ def evaluate_pipeline(
         all_preds.append(detections)
         all_gt.append({"boxes": meta["boxes"], "classes": meta["classes"]})
 
+        for cls in meta["classes"]:
+            if cls not in class_results:
+                class_results[cls] = {"total": 0, "correct": 0}
+            class_results[cls]["total"] += 1
+
         save_path = PIPELINE_RESULTS / f"result_{i:02d}_{image_path.stem}.png"
         draw_pipeline_result(image_path, detections, save_path,
                              gt={"boxes": meta["boxes"], "classes": meta["classes"]})
@@ -89,6 +95,30 @@ def evaluate_pipeline(
 
     metrics = compute_pipeline_metrics(all_preds, all_gt)
     save_json(PIPELINE_RESULTS / "metrics.json", metrics)
+
+    # ── Per-class correct count (greedy match, IoU ≥ 0.5) ────────────────────
+    from ...training.metrics import _box_iou
+    iou_thr = 0.5
+    for preds, gt in zip(all_preds, all_gt):
+        matched = [False] * len(preds)
+        for gt_box, gt_cls in zip(gt["boxes"], gt["classes"]):
+            best_iou, best_idx = 0.0, -1
+            for j, det in enumerate(preds):
+                if matched[j]:
+                    continue
+                iou = _box_iou(gt_box, det["bbox"])
+                if iou > best_iou:
+                    best_iou, best_idx = iou, j
+            if best_iou >= iou_thr and best_idx >= 0:
+                matched[best_idx] = True
+                if preds[best_idx]["class_name"] == gt_cls:
+                    if gt_cls in class_results:
+                        class_results[gt_cls]["correct"] += 1
+
+    # ── Plots ─────────────────────────────────────────────────────────────────
+    plot_pipeline_metrics(metrics, PIPELINE_RESULTS / "pipeline_metrics.png")
+    if class_results:
+        plot_pipeline_class_accuracy(class_results, PIPELINE_RESULTS / "pipeline_class_accuracy.png")
 
     print("\n[INFO] Pipeline metrics:")
     for k, v in metrics.items():

@@ -44,13 +44,16 @@ class DINOv2Encoder(nn.Module):
         "dinov2_vitg14": 1536,
     }
 
-    def __init__(self, model_name: str = "dinov2_vitb14", freeze: bool = True):
+    def __init__(self, model_name: str = "dinov2_vitb14", freeze: bool = True, unfreeze_blocks: int = 0):
         super().__init__()
         self.backbone    = torch.hub.load("facebookresearch/dinov2", model_name)
         self.feature_dim = self.MODEL_DIMS[model_name]
         if freeze:
             for p in self.backbone.parameters():
                 p.requires_grad = False
+            for block in self.backbone.blocks[-unfreeze_blocks:]:
+                for p in block.parameters():
+                    p.requires_grad = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Returns CLS token: (B, feature_dim)."""
@@ -165,13 +168,13 @@ def build_crop_embeddings():
 # ── Full-image CLS features (new count+box detector) ─────────────────────────
 
 def _normalize_box(box, img_w, img_h):
-    """[x, y, w, h] COCO → [x1, y1, x2, y2] normalized to [0, 1]."""
+    """[x, y, w, h] COCO → [cx, cy, w, h] normalized to [0, 1]."""
     x, y, w, h = box
     return [
-        max(0.0, x / img_w),
-        max(0.0, y / img_h),
-        min(1.0, (x + w) / img_w),
-        min(1.0, (y + h) / img_h),
+        max(0.0, min(1.0, (x + w / 2) / img_w)),
+        max(0.0, min(1.0, (y + h / 2) / img_h)),
+        max(0.0, min(1.0, w / img_w)),
+        max(0.0, min(1.0, h / img_h)),
     ]
 
 

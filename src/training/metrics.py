@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
+from ..utils.box_ops import cxcywh_to_xyxy
+
 
 # ── Classifier metrics ────────────────────────────────────────────────────────
 
@@ -47,8 +49,8 @@ def compute_detector_metrics(count_logits, box_preds, count_targets, box_targets
     if not mask.any():
         return {"count_mae": count_mae, "mean_iou": 0.0}
 
-    p = box_preds[mask]    # (N, 4)
-    t = box_targets[mask]  # (N, 4)
+    p = cxcywh_to_xyxy(box_preds[mask])    # (N, 4) xyxy
+    t = cxcywh_to_xyxy(box_targets[mask])  # (N, 4) xyxy
 
     inter = (torch.min(p[:, 2], t[:, 2]) - torch.max(p[:, 0], t[:, 0])).clamp(0) * \
             (torch.min(p[:, 3], t[:, 3]) - torch.max(p[:, 1], t[:, 1])).clamp(0)

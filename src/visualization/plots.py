@@ -104,6 +104,118 @@ def draw_detector_comparison(image_path, gt_boxes, pred_boxes, gt_count, pred_co
     plt.close()
 
 
+# ── Latent space (PCA / UMAP) ────────────────────────────────────────────────
+
+def plot_latent_space(embeddings: np.ndarray, labels: np.ndarray,
+                      class_names: list, save_dir):
+    """PCA and UMAP 2-D scatter of embeddings, colored by class. Saves two PNGs."""
+    from sklearn.decomposition import PCA
+    import umap as umap_lib
+
+    palette = [
+        "#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E24AA",
+        "#00ACC1", "#FFB300", "#6D4C41", "#546E7A", "#D81B60",
+        "#00897B", "#F4511E",
+    ]
+
+    def _scatter(ax, proj, title):
+        for idx, name in enumerate(class_names):
+            mask = labels == idx
+            ax.scatter(proj[mask, 0], proj[mask, 1],
+                       c=palette[idx % len(palette)], label=name,
+                       alpha=0.6, s=12, linewidths=0)
+        ax.set_title(title, fontsize=11, fontweight="bold")
+        ax.set_xticks([]); ax.set_yticks([])
+        ax.legend(fontsize=7, markerscale=1.5,
+                  bbox_to_anchor=(1.01, 1), loc="upper left", borderaxespad=0)
+
+    # PCA
+    pca_proj = PCA(n_components=2, random_state=42).fit_transform(embeddings)
+    fig, ax  = plt.subplots(figsize=(8, 6))
+    _scatter(ax, pca_proj, "Espacio Latente CLIP — PCA 2D")
+    plt.tight_layout()
+    plt.savefig(save_dir / "latent_pca.png", dpi=150, bbox_inches="tight")
+    plt.close()
+
+    # UMAP
+    umap_proj = umap_lib.UMAP(n_components=2, n_neighbors=15,
+                               min_dist=0.1, random_state=42).fit_transform(embeddings)
+    fig, ax   = plt.subplots(figsize=(8, 6))
+    _scatter(ax, umap_proj, "Espacio Latente CLIP — UMAP 2D")
+    plt.tight_layout()
+    plt.savefig(save_dir / "latent_umap.png", dpi=150, bbox_inches="tight")
+    plt.close()
+
+
+# ── Detector distributions ────────────────────────────────────────────────────
+
+def plot_count_error_distribution(pred_counts, gt_counts, save_path):
+    errors = [int(p) - int(g) for p, g in zip(pred_counts, gt_counts)]
+    lo, hi = min(errors), max(errors)
+    bins   = list(range(lo, hi + 2))
+    plt.figure(figsize=(8, 5))
+    plt.hist(errors, bins=bins, align="left", edgecolor="black", color="steelblue")
+    plt.xlabel("Count Error (pred − gt)")
+    plt.ylabel("Frequency")
+    plt.title("Count Error Distribution")
+    plt.grid(True, axis="y")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+
+
+def plot_iou_distribution(ious, save_path):
+    plt.figure(figsize=(8, 5))
+    plt.hist(ious, bins=20, range=(0, 1), edgecolor="black", color="teal")
+    plt.xlabel("IoU")
+    plt.ylabel("Frequency")
+    plt.title("IoU Distribution")
+    plt.grid(True, axis="y")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+
+
+# ── Pipeline metrics ──────────────────────────────────────────────────────────
+
+def plot_pipeline_metrics(metrics, save_path):
+    keys   = ["loc_recall", "clf_accuracy", "end_to_end", "combined_score"]
+    labels = ["Loc Recall", "Clf Accuracy", "End-to-End", "Combined"]
+    values = [metrics.get(k, 0.0) for k in keys]
+    plt.figure(figsize=(8, 5))
+    bars = plt.bar(labels, values, color=_CLASS_COLORS[:4], edgecolor="black")
+    for bar, val in zip(bars, values):
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
+                 f"{val:.3f}", ha="center", fontsize=9)
+    plt.ylim(0, 1.15)
+    plt.ylabel("Score")
+    plt.title("Pipeline Metrics")
+    plt.grid(True, axis="y")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+
+
+def plot_pipeline_class_accuracy(class_results, save_path):
+    """class_results: {class_name: {"total": int, "correct": int}}"""
+    names  = list(class_results.keys())
+    accs   = [class_results[n]["correct"] / max(class_results[n]["total"], 1) for n in names]
+    colors = [_CLASS_COLORS[i % len(_CLASS_COLORS)] for i in range(len(names))]
+    plt.figure(figsize=(max(8, len(names) * 0.9), 5))
+    bars = plt.bar(names, accs, color=colors, edgecolor="black")
+    for bar, val in zip(bars, accs):
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
+                 f"{val:.2f}", ha="center", fontsize=8)
+    plt.ylim(0, 1.15)
+    plt.ylabel("Accuracy")
+    plt.title("Per-Class Accuracy")
+    plt.xticks(rotation=30, ha="right")
+    plt.grid(True, axis="y")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 def draw_pipeline_result(image_path, detections, save_path, gt=None):

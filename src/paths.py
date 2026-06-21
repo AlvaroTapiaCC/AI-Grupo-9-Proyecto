@@ -44,8 +44,10 @@ CHECKPOINTS_PATH = PROJECT_ROOT / "checkpoints"
 CLS_LAST_CHECKPOINT = CHECKPOINTS_PATH / "classifier" / level / "last.pt"
 CLS_BEST_CHECKPOINT = CHECKPOINTS_PATH / "classifier" / level / "best.pt"
 
-DET_LAST_CHECKPOINT = CHECKPOINTS_PATH / "detector" / level / "last.pt"
-DET_BEST_CHECKPOINT = CHECKPOINTS_PATH / "detector" / level / "best.pt"
+DET_LAST_CHECKPOINT      = CHECKPOINTS_PATH / "detector" / level / "last.pt"
+DET_BEST_CHECKPOINT      = CHECKPOINTS_PATH / "detector" / level / "best.pt"
+DINO_DET_LAST_CHECKPOINT = CHECKPOINTS_PATH / "detector" / level / "dino_last.pt"
+DINO_DET_BEST_CHECKPOINT = CHECKPOINTS_PATH / "detector" / level / "dino_best.pt"
 
 # ── Results (metrics and plots) ───────────────────────────────────────────────
 RESULTS_PATH = PROJECT_ROOT / "results"

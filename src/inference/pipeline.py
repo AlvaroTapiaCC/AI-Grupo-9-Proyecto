@@ -3,6 +3,8 @@ import torchvision.io as io
 import torchvision.transforms.functional as TF
 from PIL import Image
 
+from ..utils.box_ops import cxcywh_to_xyxy
+
 
 _DINO_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
 _DINO_STD  = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
@@ -62,7 +64,7 @@ def run_pipeline(
         count_logits, box_preds       = detector(cls_token, patch_tokens)          # (1, K_cls), (1, MAX_DET, 4)
 
     pred_count = count_logits.argmax(dim=1).item()
-    pred_boxes = box_preds[0, :pred_count].cpu()  # (pred_count, 4)
+    pred_boxes = cxcywh_to_xyxy(box_preds[0, :pred_count].cpu())  # (pred_count, 4) xyxy
 
     if pred_count == 0:
         return []

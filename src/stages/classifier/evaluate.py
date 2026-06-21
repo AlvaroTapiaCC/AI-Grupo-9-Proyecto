@@ -19,9 +19,9 @@ def evaluate_classifier(model, is_better, val_emb=None, label_encoder_path=None)
     val_emb            = val_emb            or CLIP_VAL_EMB
     label_encoder_path = label_encoder_path or CLIP_LABEL_ENCODER
 
-    # when loading a pretrained model, evaluate directly into best/
-    results_dir = CLS_LAST_RESULTS if config.train_new else CLS_BEST_RESULTS
-    logs_dir    = CLS_LAST_LOGS    if config.train_new else CLS_BEST_LOGS
+    results_dir  = CLS_LAST_RESULTS
+    logs_dir     = CLS_LAST_LOGS
+    history_dir  = CLS_LAST_LOGS if config.train_new else CLS_BEST_LOGS
 
     results_dir.mkdir(parents=True, exist_ok=True)
     logs_dir.mkdir(parents=True, exist_ok=True)
@@ -41,8 +41,15 @@ def evaluate_classifier(model, is_better, val_emb=None, label_encoder_path=None)
         build_supercategory_name_mapping(load_json(SUPERCATEGORIES_PATH)).values()
     )
 
-    from ...visualization.plots import plot_confusion_matrix
+    from ...visualization.plots import plot_confusion_matrix, plot_classifier_history, plot_latent_space
     from ...visualization.predictions import show_classifier_predictions
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
+    import numpy as np
+
+    history_path = history_dir / "history.json"
+    if history_path.exists():
+        plot_classifier_history(load_json(history_path), results_dir)
 
     plot_confusion_matrix(
         y_true, y_pred,
@@ -50,6 +57,22 @@ def evaluate_classifier(model, is_better, val_emb=None, label_encoder_path=None)
         save_path=results_dir / "confusion_matrix.png",
     )
     show_classifier_predictions(model, label_encoder, config.device, save_dir=results_dir)
+
+    # ── Latent space analysis ─────────────────────────────────────────────────
+    supercat_map  = build_supercategory_name_mapping(load_json(SUPERCATEGORIES_PATH))
+    ordered_names = [supercat_map[label_encoder.idx2id[i]]
+                     for i in range(label_encoder.num_classes())]
+
+    embeddings = val_dataset.embeddings.numpy()
+    labels_np  = val_dataset.labels.numpy()
+
+    plot_latent_space(embeddings, labels_np, ordered_names, results_dir)
+
+    n_cls    = label_encoder.num_classes()
+    km_preds = KMeans(n_clusters=n_cls, random_state=42, n_init="auto").fit_predict(embeddings)
+    ari      = adjusted_rand_score(labels_np, km_preds)
+    nmi      = normalized_mutual_info_score(labels_np, km_preds)
+    print(f"[INFO] Latent space clustering (K-Means, K={n_cls}):  ARI={ari:.4f}  NMI={nmi:.4f}")
 
     if config.train_new and is_better:
         if CLS_BEST_RESULTS.exists():
