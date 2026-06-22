@@ -50,7 +50,7 @@ def detector_loss(count_logits, box_preds, count_targets, box_targets):
     Hungarian matching per image — cost matrix in one GPU pass.
     Returns: (count_loss, box_loss)
     """
-    count_loss = F.cross_entropy(count_logits, count_targets)
+    count_loss = F.cross_entropy(count_logits, count_targets, label_smoothing=0.1)
 
     cost_np = _batch_cost_matrix(box_preds, box_targets)
 

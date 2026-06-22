@@ -1,0 +1,9 @@
+{
+    "loc_recall": 0.4074,
+    "clf_accuracy": 0.8182,
+    "end_to_end": 0.3333,
+    "combined_score": 0.5196,
+    "total_gt": 27,
+    "total_detected": 11,
+    "total_correct": 9
+}

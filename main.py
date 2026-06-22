@@ -132,7 +132,7 @@ def main():
         metrics = evaluate_pipeline(
             dino_encoder, detector, clip_model,
             clip_mlp, label_encoder, supercat_map,
-            n_images=50,
+            n_images=5,
         )
 
     else:

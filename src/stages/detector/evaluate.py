@@ -92,18 +92,28 @@ def evaluate_detector(model, is_better, dino_encoder=None):
     plot_count_error_distribution(pred_counts, gt_counts,
                                   results_dir / "count_error_dist.png")
 
-    # Per-slot IoU for all valid slots (cxcywh → xyxy)
+    # Per-box IoU after Hungarian matching (same assignment as training loss)
+    from scipy.optimize import linear_sum_assignment
     B, MAX_DET, _ = box_preds_cat.shape
-    slot_idx = torch.arange(MAX_DET).unsqueeze(0)
-    mask     = slot_idx < count_targets_cat.unsqueeze(1)
-    if mask.any():
-        p = cxcywh_to_xyxy(box_preds_cat[mask])
-        t = cxcywh_to_xyxy(box_targets_cat[mask])
-        inter = (torch.min(p[:, 2], t[:, 2]) - torch.max(p[:, 0], t[:, 0])).clamp(0) * \
-                (torch.min(p[:, 3], t[:, 3]) - torch.max(p[:, 1], t[:, 1])).clamp(0)
-        p_area = (p[:, 2] - p[:, 0]).clamp(0) * (p[:, 3] - p[:, 1]).clamp(0)
-        t_area = (t[:, 2] - t[:, 0]).clamp(0) * (t[:, 3] - t[:, 1]).clamp(0)
-        ious   = (inter / (p_area + t_area - inter + 1e-6)).tolist()
+    ious = []
+    for b in range(B):
+        n = int(count_targets_cat[b].item())
+        if n == 0:
+            continue
+        p_all = cxcywh_to_xyxy(box_preds_cat[b])   # (MAX_DET, 4)
+        t_all = cxcywh_to_xyxy(box_targets_cat[b, :n])  # (n, 4)
+        # build cost matrix (MAX_DET x n) using L1
+        cost = torch.cdist(box_preds_cat[b], box_targets_cat[b, :n], p=1).numpy()
+        row_idx, col_idx = linear_sum_assignment(cost[:, :n])
+        for r, c in zip(row_idx, col_idx):
+            p = p_all[r]
+            t = t_all[c]
+            inter = (min(p[2], t[2]) - max(p[0], t[0])).clamp(0) * \
+                    (min(p[3], t[3]) - max(p[1], t[1])).clamp(0)
+            p_area = (p[2] - p[0]).clamp(0) * (p[3] - p[1]).clamp(0)
+            t_area = (t[2] - t[0]).clamp(0) * (t[3] - t[1]).clamp(0)
+            ious.append((inter / (p_area + t_area - inter + 1e-6)).item())
+    if ious:
         plot_iou_distribution(ious, results_dir / "iou_dist.png")
 
     # ── Training history plot ─────────────────────────────────────────────────

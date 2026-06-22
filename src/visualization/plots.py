@@ -56,18 +56,24 @@ def plot_detector_history(history, save_path):
     epochs = range(1, len(history["train_count_loss"]) + 1)
 
     plt.figure()
-    plt.plot(epochs, history["train_count_loss"], label="Train Count Loss")
-    plt.plot(epochs, history["test_count_loss"],  label="Test Count Loss")
-    plt.plot(epochs, history["train_box_loss"],   label="Train Box Loss", linestyle="--")
-    plt.plot(epochs, history["test_box_loss"],    label="Test Box Loss",  linestyle="--")
+    plt.plot(epochs, history["train_count_loss"], label="Train")
+    plt.plot(epochs, history["test_count_loss"],  label="Val")
     plt.xlabel("Epoch"); plt.ylabel("Loss")
-    plt.title("Detector Loss"); plt.legend(); plt.grid(True)
-    plt.savefig(save_path / "loss.png", dpi=150)
+    plt.title("Count Loss"); plt.legend(); plt.grid(True)
+    plt.savefig(save_path / "count_loss.png", dpi=150)
     plt.close()
 
     plt.figure()
-    plt.plot(epochs, history["train_count_mae"], label="Train Count MAE")
-    plt.plot(epochs, history["test_count_mae"],  label="Test Count MAE")
+    plt.plot(epochs, history["train_box_loss"], label="Train")
+    plt.plot(epochs, history["test_box_loss"],  label="Val")
+    plt.xlabel("Epoch"); plt.ylabel("Loss")
+    plt.title("Box Loss"); plt.legend(); plt.grid(True)
+    plt.savefig(save_path / "box_loss.png", dpi=150)
+    plt.close()
+
+    plt.figure()
+    plt.plot(epochs, history["train_count_mae"], label="Train")
+    plt.plot(epochs, history["test_count_mae"],  label="Val")
     plt.xlabel("Epoch"); plt.ylabel("MAE")
     plt.title("Count MAE"); plt.legend(); plt.grid(True)
     plt.savefig(save_path / "count_mae.png", dpi=150)
@@ -167,9 +173,9 @@ def plot_count_error_distribution(pred_counts, gt_counts, save_path):
 def plot_iou_distribution(ious, save_path):
     plt.figure(figsize=(8, 5))
     plt.hist(ious, bins=20, range=(0, 1), edgecolor="black", color="teal")
-    plt.xlabel("IoU")
-    plt.ylabel("Frequency")
-    plt.title("IoU Distribution")
+    plt.xlabel("IoU (predicción vs GT)")
+    plt.ylabel("Cantidad de cajas")
+    plt.title("Distribución de IoU por caja predicha")
     plt.grid(True, axis="y")
     plt.tight_layout()
     plt.savefig(save_path, dpi=150)
@@ -218,60 +224,96 @@ def plot_pipeline_class_accuracy(class_results, save_path):
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
-def draw_pipeline_result(image_path, detections, save_path, gt=None):
+def _box_iou_norm(a, b):
+    """IoU between two [x1,y1,x2,y2] normalized boxes."""
+    ix1, iy1 = max(a[0], b[0]), max(a[1], b[1])
+    ix2, iy2 = min(a[2], b[2]), min(a[3], b[3])
+    inter  = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    a_area = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
+    b_area = max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
+    return inter / (a_area + b_area - inter + 1e-6)
+
+
+def _crop(img, box, H, W, pad=4):
+    """Crop PIL/numpy image to normalized [x1,y1,x2,y2] box with optional padding."""
+    x1 = max(0, int(box[0] * W) - pad)
+    y1 = max(0, int(box[1] * H) - pad)
+    x2 = min(W, int(box[2] * W) + pad)
+    y2 = min(H, int(box[3] * H) + pad)
+    return img[y1:y2, x1:x2]
+
+
+def draw_pipeline_result(image_path, detections, save_path, gt=None, iou_threshold=0.3):
     """
-    Two-panel figure: GT (left) | Predicted (right).
-    Both panels color-code boxes by class name.
-    gt: {boxes: [[x1,y1,x2,y2] norm], classes: [str]} or None (single panel).
+    Per-product grid (as square as possible): one cell per GT product.
+    Each cell shows the full image with GT bbox (blue) and matched pred bbox (red).
+    If no prediction matched, only the GT bbox is drawn.
     """
     img = np.array(Image.open(str(image_path)).convert("RGB"))
     H, W = img.shape[:2]
 
-    # Build a shared class → color map across GT and predictions
-    all_classes = []
-    if gt:
-        all_classes += gt["classes"]
-    all_classes += [d["class_name"] for d in detections]
-    class_color_map, ci = {}, 0
-    for name in all_classes:
-        if name not in class_color_map:
-            class_color_map[name] = _CLASS_COLORS[ci % len(_CLASS_COLORS)]
-            ci += 1
+    if gt is None or len(gt["boxes"]) == 0:
+        return
 
-    n_panels = 2 if gt else 1
-    fig, axes = plt.subplots(1, n_panels, figsize=(10 * n_panels, 8))
-    if n_panels == 1:
-        axes = [axes]
+    gt_boxes   = gt["boxes"]
+    gt_classes = gt["classes"]
+    n_gt       = len(gt_boxes)
 
-    def _draw_boxes(ax, boxes, classes, title, show_conf=False, confs=None):
+    # Greedy match: for each GT find best-IoU prediction (no reuse)
+    matched_pred = [False] * len(detections)
+    matches = []  # list of (pred_idx or None)
+    for gt_box in gt_boxes:
+        best_iou, best_idx = 0.0, -1
+        for j, det in enumerate(detections):
+            if matched_pred[j]:
+                continue
+            iou = _box_iou_norm(gt_box, det["bbox"])
+            if iou > best_iou:
+                best_iou, best_idx = iou, j
+        if best_iou >= iou_threshold and best_idx >= 0:
+            matched_pred[best_idx] = True
+            matches.append(best_idx)
+        else:
+            matches.append(None)
+
+    import math
+    cols = math.ceil(math.sqrt(n_gt))
+    rows = math.ceil(n_gt / cols)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3.5, rows * 3.5))
+    axes_flat = np.array(axes).flatten() if n_gt > 1 else [axes]
+
+    for i, (gt_box, gt_cls, pred_idx) in enumerate(zip(gt_boxes, gt_classes, matches)):
+        ax = axes_flat[i]
         ax.imshow(img)
-        ax.set_title(title, fontsize=11)
-        ax.axis("off")
-        for j, (box, cls) in enumerate(zip(boxes, classes)):
-            x1, y1, x2, y2 = box
-            color = class_color_map.get(cls, "#FFFFFF")
+
+        # GT bbox — blue
+        x1, y1, x2, y2 = gt_box
+        ax.add_patch(patches.Rectangle(
+            (x1 * W, y1 * H), (x2 - x1) * W, (y2 - y1) * H,
+            linewidth=2, edgecolor="#1E88E5", facecolor="none",
+        ))
+
+        if pred_idx is not None:
+            det = detections[pred_idx]
+            px1, py1, px2, py2 = det["bbox"]
             ax.add_patch(patches.Rectangle(
-                (x1 * W, y1 * H), (x2 - x1) * W, (y2 - y1) * H,
-                linewidth=2, edgecolor=color, facecolor="none",
+                (px1 * W, py1 * H), (px2 - px1) * W, (py2 - py1) * H,
+                linewidth=2, edgecolor="#E53935", facecolor="none",
             ))
-            label = f"{cls} {confs[j]:.0%}" if (show_conf and confs) else cls
-            ax.text(
-                x1 * W, max(0, y1 * H - 4), label,
-                color="white", fontsize=7,
-                bbox=dict(facecolor=color, alpha=0.8, pad=1),
-            )
+            iou = _box_iou_norm(gt_box, det["bbox"])
+            label = f"GT: {gt_cls}\nPred: {det['class_name']} (IoU: {iou:.0%})"
+        else:
+            label = f"GT: {gt_cls}\nNo detectado"
 
-    if gt:
-        _draw_boxes(axes[0], gt["boxes"], gt["classes"],
-                    f"GT ({len(gt['boxes'])} objects)")
+        ax.set_title(label, fontsize=7, loc="left", pad=3)
+        ax.axis("off")
 
-    pred_boxes   = [d["bbox"]       for d in detections]
-    pred_classes = [d["class_name"] for d in detections]
-    pred_confs   = [d["confidence"] for d in detections]
-    _draw_boxes(axes[-1], pred_boxes, pred_classes,
-                f"Predicted ({len(detections)} objects)",
-                show_conf=True, confs=pred_confs)
+    # hide unused subplots
+    for j in range(n_gt, len(axes_flat)):
+        axes_flat[j].axis("off")
 
+    plt.suptitle(image_path.name, fontsize=9)
     plt.tight_layout()
     plt.savefig(save_path, bbox_inches="tight", dpi=150)
     plt.close()

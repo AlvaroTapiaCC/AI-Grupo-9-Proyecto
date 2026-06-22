@@ -58,10 +58,6 @@ def _train_precomputed():
     test_loader   = DataLoader(test_dataset,  batch_size=config.batch_size, shuffle=False)
 
     model     = RetailDetector(feature_dim=train_dataset.feature_dim).to(config.device)
-    try:
-        model = torch.compile(model)
-    except Exception:
-        pass
 
     optimizer     = optim.AdamW(model.parameters(), lr=config.lr, weight_decay=1e-4)
     warmup_epochs = max(1, config.epochs // 10)
@@ -113,10 +109,6 @@ def _train_finetune():
         print("[INFO] Loading previous detector weights as starting point...")
         load_model(model, DET_BEST_CHECKPOINT, config.device)
 
-    try:
-        model = torch.compile(model)
-    except Exception:
-        pass
 
     optimizer = optim.AdamW([
         {"params": [p for p in encoder.parameters() if p.requires_grad], "lr": config.backbone_lr},
