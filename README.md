@@ -89,7 +89,17 @@ AI-Grupo-9-Proyecto/
 
 ### Etapa 1 — Detección binaria por patches (dataset original)
 
-El punto de partida fue un dataset de imágenes de productos sin etiquetas de categoría. Se implementó un clasificador lineal que dividía cada imagen en patches y predecía si cada patch contenía un producto o no (detección binaria). Los resultados fueron malos: el modelo no lograba distinguir producto de fondo de forma consistente, y la ausencia de labels de categoría impedía ir más allá de esa detección. Se decidió cambiar de dataset.
+El punto de partida fue el dataset [SKU110K](https://www.kaggle.com/datasets/thedatasith/sku110k-annotations), que contiene imágenes de góndolas con anotaciones YOLO (bounding boxes) pero sin etiquetas de categoría — solo la posición de cada producto.
+
+El enfoque fue entrenar una **regresión logística binaria** para clasificar patches de 32×32 px como _producto_ (1) o _fondo_ (0). El pipeline completo:
+
+1. **Construcción del dataset:** para cada imagen se extraían crops de los bounding boxes como ejemplos positivos (producto), y por cada positivo se generaban 2 patches aleatorios fuera de los bboxes como ejemplos negativos (fondo). Cada patch se aplanaba a un vector de 3072 dimensiones (32×32×3) y se normalizaba a [0,1].
+
+2. **Entrenamiento:** regresión logística con scikit-learn, split 80/20 estratificado.
+
+3. **Detección:** sliding window sobre la imagen completa con paso de 16 px (50% de solapamiento) — cada ventana se clasificaba y si la probabilidad superaba 0.7 se registraba como detección. Al final se aplicaba **NMS** (Non-Maximum Suppression) para eliminar detecciones redundantes solapadas.
+
+Los resultados fueron malos: un clasificador lineal sobre píxeles aplanados no logra capturar las variaciones de escala, iluminación y contexto necesarias para distinguir producto de fondo de forma robusta. Además, la ausencia de etiquetas de categoría impedía avanzar hacia clasificación. Se decidió cambiar de dataset.
 
 ---
 
